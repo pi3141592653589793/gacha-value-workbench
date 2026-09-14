@@ -1,0 +1,3429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'">
+<meta name="theme-color" content="#0f6e56">
+<meta name="description" content="个人游戏氪金价值推算系统：全参数可调、k 标定、离线可用，数据只存在本机。">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="氪金工作台">
+<title>氪金价值工作台</title>
+<script>
+/* 主题在首帧之前定好，避免「先亮后暗」的闪白。
+   存的是偏好：dark / light / auto（跟随系统，默认）。 */
+(function(){try{
+  var p=localStorage.getItem('hj_theme');
+  if(p!=='dark'&&p!=='light') p='auto';
+  var t=p;
+  if(t==='auto') t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+  document.documentElement.setAttribute('data-theme',t);
+}catch(e){}})();
+</script>
+<style>
+:root{
+  --bg:#f7f6f3; --card:#ffffff; --line:#e3e1da; --line2:#f1efe9; --line3:#efece5;
+  --tx:#26251f; --tx2:#6b6a63; --tx3:#9d9b92;
+  --accent:#0f6e56; --accent-soft:#e6f6f0; --accent-line:#bde5d7;
+  --accent-btn:#0f6e56;   /* 只用于实底按钮（主按钮 / 分段选中） */
+  --warn:#993c1d; --warn-soft:#faece7; --warn-line:#f0cfc0;
+  --blue:#2a5a8f; --blue-soft:#eaf1f9; --blue-line:#cbdcee;
+  --ok-tx:#0b5a46; --warn-tx:#7d3218; --tip-tx:#244f7d;
+  --row-hover:#fbfaf8; --hover-bg:rgba(255,255,255,.6);
+  --toast-bg:#26251f; --toast-tx:#f7f6f3; --toast-ok:#0f6e56; --toast-warn:#993c1d;
+  /* 曲线对照色的两套（浅 / 深）在下面各自覆盖 */
+  --c-flat:#c9c6bd; --c-sqrt:#e0b48c; --dot-ring:#ffffff;
+  --r:14px;
+  --sp:22px;
+  color-scheme:light;
+}
+/* ---------- 夜间模式：只换变量，不动结构 ---------- */
+html[data-theme="dark"]{
+  --bg:#161719; --card:#1e2024; --line:#2f3236; --line2:#262930; --line3:#2a2d31;
+  --tx:#e9e7e2; --tx2:#a9a7a1; --tx3:#7a7972;
+  --accent:#5fd6ac; --accent-soft:#15332b; --accent-line:#28594a;
+  --accent-btn:#1d6b50;   /* 只用于实底按钮（主按钮 / 分段选中），刻意比文字绿深 */
+  --warn:#f0a17e; --warn-soft:#3a241b; --warn-line:#5c3928;
+  --blue:#8dbde9; --blue-soft:#1a2634; --blue-line:#2e4256;
+  --ok-tx:#93e2c7; --warn-tx:#f5b899; --tip-tx:#afd0f2;
+  --row-hover:#232629; --hover-bg:rgba(255,255,255,.07);
+  --toast-bg:#34383c; --toast-tx:#f2f0ec; --toast-ok:#1d7358; --toast-warn:#8e4423;
+  --c-flat:#4c5055; --c-sqrt:#8f6c48; --dot-ring:#1e2024;
+  color-scheme:dark;
+}
+html[data-theme="dark"] .top{box-shadow:0 6px 18px -14px rgba(0,0,0,.9)}
+html[data-theme="dark"] .subtabs button.on{box-shadow:0 1px 4px -2px rgba(0,0,0,.7)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--tx);font-size:14px;line-height:1.7;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 26px 110px}
+
+/* ---------- 顶栏 ---------- */
+.top{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--line);
+  box-shadow:0 6px 16px -14px rgba(0,0,0,.5)}
+.top .inner{max-width:1180px;margin:0 auto;padding:18px 26px 0}
+h1{font-size:19px;font-weight:600;margin:0 0 6px;letter-spacing:.2px}
+.sub{color:var(--tx2);font-size:12.5px;margin:0 0 16px;line-height:1.8}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tabs button{font:inherit;font-size:13px;padding:9px 16px;border:0;background:transparent;color:var(--tx2);
+  cursor:pointer;border-bottom:2px solid transparent;border-radius:8px 8px 0 0;transition:.15s}
+.tabs button:hover{background:var(--line2);color:var(--tx)}
+.tabs button.on{color:var(--accent);font-weight:600;border-bottom-color:var(--accent);background:var(--accent-soft)}
+
+/* ---------- 卡片 ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:var(--sp) 26px calc(var(--sp) + 4px);margin-bottom:18px}
+.card.tight{padding-bottom:var(--sp)}
+.card h2{font-size:15px;font-weight:600;margin:0 0 6px;display:flex;align-items:center;gap:9px}
+.card h2 .n{display:inline-flex;width:21px;height:21px;border-radius:7px;background:var(--accent-soft);
+  color:var(--accent);font-size:11px;align-items:center;justify-content:center;font-weight:700;flex:0 0 auto}
+.card h2+.lead{margin-top:0}
+.lead{color:var(--tx2);font-size:12.5px;margin:0 0 20px;line-height:1.85}
+h3.sub-h{font-size:13px;font-weight:600;margin:24px 0 12px;padding-bottom:7px;
+  border-bottom:1px solid var(--line2);color:var(--tx)}
+h3.sub-h:first-child{margin-top:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:22px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.2px;background:var(--bg);
+  padding:1.5px 6px;border-radius:5px;border:1px solid var(--line2);white-space:nowrap}
+b.hl{background:var(--accent-soft);color:var(--accent);padding:1px 5px;border-radius:4px;font-weight:600}
+b.hlw{background:var(--warn-soft);color:var(--warn);padding:1px 5px;border-radius:4px;font-weight:600}
+
+.formula{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.2px;color:var(--tx2);
+  background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:14px 16px;
+  white-space:pre;line-height:2;margin:14px 0 0;overflow-x:auto}
+
+/* 键值表：替代挤在一起的等宽文本 */
+.kv{display:grid;grid-template-columns:auto 1fr;gap:0 20px;margin-top:6px;font-size:12.8px}
+.kv>div{padding:9px 0;border-bottom:1px dashed var(--line3);min-width:0}
+.kv>div:nth-last-child(-n+2){border-bottom:0}
+.kv .k{color:var(--tx2);white-space:nowrap}
+.kv .v{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kv .v em{font-style:normal;color:var(--tx3);font-size:12px}
+
+/* 参数行 */
+.prow{display:grid;grid-template-columns:190px minmax(0,1fr);gap:8px 20px;
+  padding:16px 0;border-bottom:1px solid var(--line2)}
+.prow:last-child{border-bottom:0}
+.prow .lab{font-size:13px;font-weight:600;padding-top:4px;line-height:1.5}
+.prow .lab .sym{display:block;font-size:11px;color:var(--tx3);font-weight:400;
+  font-family:ui-monospace,monospace;margin-top:3px}
+.prow .ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.prow .exp{grid-column:2;font-size:12.2px;color:var(--tx2);margin:2px 0 0;line-height:1.85}
+.prow .exp b{color:var(--tx)}
+@media(max-width:820px){ .prow{grid-template-columns:1fr} .prow .exp{grid-column:1} }
+
+input[type=number],input[type=text],select,textarea{font:inherit;font-size:13px;padding:6px 9px;
+  border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--tx);
+  width:104px;transition:.15s}
+input[type=text]{width:160px}
+textarea{width:100%;resize:vertical;min-height:38px;line-height:1.6}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-line);border-color:var(--accent-line)}
+input[type=range]{flex:1;min-width:110px;accent-color:var(--accent);height:22px;margin:0}
+input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
+.unit{font-size:12px;color:var(--tx3);white-space:nowrap}
+.num{font-size:12.5px;font-variant-numeric:tabular-nums;background:var(--bg);border-radius:6px;
+  padding:3px 9px;white-space:nowrap}
+label.chk{display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.tick{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--tx3)}
+
+/* 提示块 */
+.warnbox,.okbox,.tip{border-radius:10px;padding:12px 15px;font-size:12.4px;line-height:1.85;margin-top:14px}
+.warnbox{background:var(--warn-soft);border:1px solid var(--warn-line);color:var(--warn-tx)}
+.okbox{background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--ok-tx)}
+.tip{background:var(--blue-soft);border:1px solid var(--blue-line);color:var(--tip-tx)}
+.warnbox b,.okbox b,.tip b{font-weight:600}
+
+/* ---------- 结果块 ---------- */
+.big{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:11px;
+  padding:18px 20px;text-align:left}
+.big .k{font-size:11.5px;color:var(--accent);letter-spacing:.4px;margin-bottom:4px}
+.big .v{font-size:32px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;line-height:1.2}
+.big .u{font-size:14px;font-weight:400;color:var(--accent);opacity:.75}
+.big.alt{background:var(--bg);border-color:var(--line)}
+.big.alt .k,.big.alt .v,.big.alt .u{color:var(--tx)}
+.big.neg{background:var(--warn-soft);border-color:var(--warn-line)}
+.big.neg .k,.big.neg .v,.big.neg .u{color:var(--warn)}
+.metric{background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:13px 15px}
+.metric .k{font-size:11.5px;color:var(--tx2);margin-bottom:3px}
+.metric .v{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.35}
+.metric .u{font-size:11.5px;color:var(--tx3);font-weight:400;margin-left:2px}
+.metric p{font-size:12.2px;color:var(--tx2);margin:0;line-height:1.9}
+.tag{display:inline-block;font-size:11.5px;padding:4px 11px;border-radius:999px;background:var(--card);
+  color:var(--tx2);border:1px solid var(--line);margin:0 7px 7px 0}
+.tag.hot{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-line)}
+.tag.cool{background:var(--accent-soft);color:var(--accent);border-color:var(--accent-line)}
+.tag.blue{background:var(--blue-soft);color:var(--blue);border-color:var(--blue-line)}
+
+/* ---------- 表格 ---------- */
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.6px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line2);vertical-align:middle}
+th{font-size:11.5px;color:var(--tx2);font-weight:600;white-space:nowrap;background:var(--bg);
+  position:sticky;top:0;z-index:2;border-bottom:1px solid var(--line)}
+tbody tr:hover td{background:var(--row-hover)}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.off{opacity:.42}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:11px;background:var(--card)}
+table input[type=text]{width:120px;padding:5px 7px}
+table input[type=number]{width:70px;padding:5px 7px}
+.del{background:transparent;border:0;color:var(--tx3);cursor:pointer;font-size:17px;padding:2px 6px;line-height:1}
+.del:hover{color:var(--warn)}
+.hint-line{font-size:11.5px;color:var(--tx3);margin:10px 0 0}
+
+/* ---------- 按钮 ---------- */
+button.btn{font:inherit;font-size:12.6px;padding:8px 15px;border-radius:9px;border:1px solid var(--line);
+  background:var(--card);color:var(--tx);cursor:pointer;transition:.15s}
+button.btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+button.btn.pri{background:var(--accent-btn);color:#fff;border-color:var(--accent-btn)}
+button.btn.pri:hover{opacity:.9;color:#fff;background:var(--accent-btn)}
+button.btn.sm{font-size:12px;padding:5px 11px}
+button.btn.danger:hover{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card)}
+.seg button{font:inherit;font-size:12.6px;padding:8px 15px;border:0;background:transparent;color:var(--tx2);cursor:pointer}
+.seg button.on{background:var(--accent-btn);color:#fff;font-weight:600}
+.acts{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
+.acts.tight-top{margin-top:14px}
+
+/* ---------- 维度块 ---------- */
+.dim-block{border:1px solid var(--line);border-radius:11px;padding:16px 18px;margin-bottom:14px;background:var(--card)}
+.dim-block:last-child{margin-bottom:0}
+.dim-block .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.dim-block .head input[type=text]{width:150px;font-weight:600}
+.dim-block .ctl-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mini-label{font-size:11.5px;color:var(--tx3);white-space:nowrap}
+details.ref{margin-top:14px;border-top:1px dashed var(--line3);padding-top:12px}
+details.ref>summary{font-size:12.5px;color:var(--blue);cursor:pointer;list-style:none;font-weight:600;
+  display:inline-flex;align-items:center;gap:6px}
+details.ref>summary::-webkit-details-marker{display:none}
+details.ref>summary::before{content:"▸";font-size:10px;transition:.15s}
+details.ref[open]>summary::before{content:"▾"}
+details.ref .body{padding-top:12px}
+.anchor-row{display:grid;grid-template-columns:86px minmax(0,1fr) 34px;gap:9px;align-items:center;margin-bottom:9px}
+.anchor-row input[type=number]{width:86px}
+.anchor-row input[type=text]{width:100%}
+
+/* ---------- 打分面板 ---------- */
+.dimrow{padding:16px 0;border-bottom:1px solid var(--line2)}
+.dimrow:last-child{border-bottom:0}
+.dimrow .hd{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+.dimrow .nm{font-size:13.5px;font-weight:600}
+.dimrow .rg{font-size:11.5px;color:var(--tx3)}
+.dimrow .nrow{display:flex;align-items:center;gap:12px}
+.bar{height:7px;border-radius:4px;background:var(--line2);overflow:hidden;position:relative;margin-top:9px}
+.bar i{position:absolute;top:0;bottom:0;left:0;background:var(--accent);border-radius:4px;transition:.12s}
+.bar i.neg{background:var(--warn)}
+.chips{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:11px;background:var(--bg);border:1px solid var(--line2);border-radius:6px;
+  padding:3px 8px;color:var(--tx2);white-space:nowrap}
+.chip b{color:var(--accent);font-weight:600;margin-right:4px}
+.chip.on{background:var(--accent-soft);border-color:var(--accent-line)}
+
+/* ---------- 曲线 ---------- */
+#chart{width:100%;height:auto;display:block;margin-top:6px}
+.legend{display:flex;gap:22px;flex-wrap:wrap;font-size:12.2px;color:var(--tx2);margin-top:16px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{display:inline-block;width:18px;height:3px;border-radius:2px}
+.legend i.dot{width:10px;height:10px;border-radius:50%}
+
+/* ---------- 提示条 ---------- */
+/* 可折叠的说明（与参考标准同一套交互） */
+details.why{margin-top:5px}
+details.why>summary{font-size:11.5px;color:var(--blue);cursor:pointer;list-style:none;
+  display:inline-flex;align-items:center;gap:5px;font-weight:600;padding:2px 0;user-select:none}
+details.why>summary::-webkit-details-marker{display:none}
+details.why>summary::before{content:"▸";font-size:9px;transition:.15s}
+details.why[open]>summary::before{content:"▾"}
+details.why .body{font-size:12.2px;color:var(--tx2);line-height:1.9;padding-top:4px}
+.tabs-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.head-tools{margin-left:auto;display:flex;gap:8px;align-items:center;padding-bottom:4px}
+/* ---------- 额度账户 / 折叠分组 ---------- */
+details.offbox{margin-top:14px;border:1px solid var(--line);border-radius:11px;background:var(--bg);overflow:hidden}
+details.offbox>summary{cursor:pointer;padding:12px 16px;font-size:12.8px;color:var(--tx2);
+  list-style:none;user-select:none;line-height:1.75}
+details.offbox>summary::-webkit-details-marker{display:none}
+details.offbox>summary::before{content:"▸ ";font-size:11px;color:var(--tx3)}
+details.offbox[open]>summary::before{content:"▾ "}
+details.offbox[open]>summary{border-bottom:1px solid var(--line);color:var(--tx)}
+details.offbox .tbl-wrap{border:0;border-radius:0;margin:0;background:var(--card)}
+details.offbox .hint-line{margin:0;padding:10px 16px;border-top:1px solid var(--line2)}
+.namecell{display:flex;gap:6px;align-items:center}
+.namecell input{width:100%;min-width:176px}
+.balpos{color:var(--accent);font-weight:600}
+.balneg{color:var(--warn);font-weight:600}
+table.subs td,table.subs th{padding:9px 11px}
+table.subs{width:100%}
+table.subs .del{margin-left:8px}
+tr.exrow>td{background:var(--bg);padding:0;border-top:0}
+.exbox{padding:14px 18px 16px;border-left:3px solid var(--accent-line)}
+.exbox .ext{font-size:11.5px;color:var(--tx2);font-weight:600;margin-bottom:9px;letter-spacing:.3px}
+.exdims{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:9px 14px}
+.exdims label{display:flex;align-items:center;gap:7px;font-size:12.3px;color:var(--tx2);min-width:0}
+.exdims label .dn{flex:0 0 auto;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exdims input{width:80px}
+.exrow .exnote{margin-top:11px;display:flex;align-items:center;gap:8px;font-size:12.3px;color:var(--tx2)}
+.exrow .exnote input{flex:1;min-width:120px}
+.expander{font:inherit;background:transparent;border:0;color:var(--tx3);cursor:pointer;
+  padding:4px 7px;border-radius:6px;line-height:1}
+.expander:hover{background:var(--line2);color:var(--tx)}
+.expander.on{color:var(--accent)}
+.tbl-wrap>table.subs{min-width:0}
+table.subs .barcell{min-width:110px}
+.bar2{height:7px;border-radius:4px;background:var(--line2);overflow:hidden;min-width:78px}
+.bar2 i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.bar2 i.low{background:var(--warn)}
+.subkpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0 4px}
+.subkpi>div{background:var(--bg);border:1px solid var(--line2);border-radius:11px;padding:13px 15px;min-width:0}
+.subkpi .k{font-size:11.5px;color:var(--tx2);margin-bottom:3px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.subkpi .v{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;
+  line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subkpi .v small{font-size:12px;font-weight:400;color:var(--tx3)}
+.subkpi>div.hi{background:var(--accent-soft);border-color:var(--accent-line)}
+.subkpi>div.hi .v{color:var(--accent)}
+.subkpi>div.lo{background:var(--warn-soft);border-color:var(--warn-line)}
+.subkpi>div.lo .v{color:var(--warn)}
+.dim-block .head .acts-inline{margin-left:auto}
+table.tiers input{width:68px;padding:4px 6px}
+table.tiers input.t_name{width:112px}
+tr.currow td{background:var(--accent-soft)}
+/* 二级子页导航 */
+.subtabs{display:flex;gap:5px;flex-wrap:wrap;margin:0 0 18px;padding:5px;
+  background:var(--line2);border-radius:11px}
+.subtabs button{font:inherit;font-size:12.6px;padding:8px 15px;border:0;border-radius:8px;
+  background:transparent;color:var(--tx2);cursor:pointer;transition:.15s;white-space:nowrap}
+.subtabs button:hover{color:var(--tx);background:var(--hover-bg)}
+.subtabs button.on{background:var(--card);color:var(--accent);font-weight:600;
+  box-shadow:0 1px 4px -2px rgba(0,0,0,.35)}
+.stepbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  margin:2px 0 0;padding:14px 20px;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.stepbar .steplab{flex:1;min-width:150px;text-align:center;font-size:12.6px;color:var(--tx2)}
+.stepbar .steplab b{color:var(--tx);font-weight:600}
+.stepbar button[disabled]{opacity:.35;cursor:default;border-color:var(--line)}
+.stepbar button[disabled]:hover{border-color:var(--line);color:var(--tx);background:var(--card)}
+.hidden{display:none !important}
+#toast{position:fixed;right:24px;bottom:24px;z-index:99;display:flex;flex-direction:column;
+  gap:10px;align-items:flex-end;pointer-events:none}
+.toast{background:var(--toast-bg);color:var(--toast-tx);font-size:12.6px;padding:12px 16px;border-radius:10px;
+  box-shadow:0 8px 24px -8px rgba(0,0,0,.45);max-width:380px;pointer-events:auto;
+  animation:tin .18s ease-out;line-height:1.7}
+.toast.ok{background:var(--toast-ok)}
+.toast.warn{background:var(--toast-warn)}
+.toast .row{display:flex;gap:10px;align-items:center;margin-top:9px}
+.toast button{font:inherit;font-size:12px;padding:5px 12px;border-radius:7px;border:0;cursor:pointer}
+.toast button.yes{background:var(--toast-tx);color:var(--toast-bg);font-weight:600}
+.toast button.no{background:transparent;color:var(--toast-tx);border:1px solid rgba(255,255,255,.45)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ================= 手机端适配（安卓 / iOS 竖屏） ================= */
+@media (max-width:760px){
+  .wrap{padding:0 13px 84px}
+  .top .inner{padding:11px 13px 0}
+  h1{font-size:16px;margin-bottom:2px}
+  .sub{display:none}
+  .tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .tabs button{font-size:12.5px;padding:8px 12px;flex:0 0 auto}
+  .tabs-row{gap:8px}
+  .head-tools .hide-sm{display:none}
+  .subtabs{overflow-x:auto;flex-wrap:nowrap;padding:4px;gap:4px}
+  .subtabs button{font-size:12.2px;padding:7px 12px;flex:0 0 auto}
+  .card{padding:16px 14px 18px;margin-bottom:12px;border-radius:12px}
+  .card h2{font-size:14px}
+  .lead{font-size:12.2px;margin-bottom:14px}
+  .prow{padding:13px 0}
+  .prow .lab{font-size:13px}
+  .prow .exp{font-size:12px}
+  input[type=number],input[type=text],select{font-size:15px;padding:8px 10px}
+  input[type=text]{width:100%}
+  input[type=range]{min-width:100%}
+  .dimrow .nrow{flex-wrap:wrap;gap:8px}
+  .dimrow .nrow input[type=range]{flex:1 1 100%}
+  button.btn{font-size:13px;padding:9px 14px}
+  .stepbar{padding:12px 14px;gap:10px}
+  .stepbar .steplab{order:-1;flex:1 1 100%;text-align:left;font-size:12px}
+  .stepbar button{flex:1 1 auto;text-align:center}
+  .big .v{font-size:27px}
+  .metric .v{font-size:18px}
+  .grid2{gap:16px}
+  .grid3{gap:10px}
+  .kv{grid-template-columns:1fr;gap:0}
+  .kv>div{padding:7px 0;border-bottom:1px dashed var(--line3)}
+  .kv .k{font-size:11.5px;color:var(--tx3)}
+  .kv>div:last-child{border-bottom:0}
+  table{font-size:12.2px}
+  th,td{padding:8px 9px}
+  #toast{right:12px;left:12px;bottom:12px;align-items:stretch}
+  .toast{max-width:none}
+  .legend{gap:12px;font-size:11.5px}
+  .wrap{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:420px){
+  .tabs button{padding:8px 10px;font-size:12px}
+  .subtabs button{padding:6px 10px;font-size:11.8px}
+  button.btn{padding:8px 11px;font-size:12.5px}
+}
+</style>
+</head>
+<body>
+
+<div class="top"><div class="inner">
+  <h1>氪金价值工作台</h1>
+  <p class="sub">k 标定器 · 全参数开放调节 · 量程可含负值 · 参考标准可自行编写<br>
+  公式　<code>V = k · S · T_eff</code>　·　<code>S_raw = Π xᵢ^wᵢ</code>　→　三段幂函数压缩 → <code>S</code></p>
+  <div class="tabs-row">
+    <div class="tabs" id="tabs">
+      <button data-t="params" class="on">① 参数总台</button>
+      <button data-t="kcal">② k 标定器</button>
+      <button data-t="calc">③ 打分与验算</button>
+      <button data-t="data">④ 预算与数据</button>
+      <button data-t="set">⑤ 设置</button>
+    </div>
+    <div class="head-tools">
+      <button class="btn sm hide-sm" id="btnExpand">展开全部说明</button>
+      <button class="btn sm hide-sm" id="btnCollapse">收起全部</button>
+    </div>
+  </div>
+</div></div>
+
+<div class="wrap">
+
+<!-- ============================ ① 参数总台 ============================ -->
+<section id="tab-params">
+  <div class="subtabs" id="subParamsNav" data-box="tab-params">
+    <button data-s="overview" class="on">概览与快照</button>
+    <button data-s="price">计价层</button>
+    <button data-s="dims">维度与参考标准</button>
+    <button data-s="comp">压缩层</button>
+    <button data-s="neg">负值处理</button>
+    <button data-s="out">输出层</button>
+  </div>
+
+  <div class="card" data-pane="overview">
+    <h2><span class="n">0</span>这个页面能调什么</h2>
+    <p class="lead">所有会影响结果的数字都在这里，每一个都写了「它是什么、往哪调、会怎样」。改完自动存进浏览器本地，下次打开还在，也可以导出成 JSON 备份。</p>
+    <div class="kv" id="pipe"></div>
+    <h3 class="sub-h">当前参数快照（所有可调项一览）</h3>
+    <div class="kv" id="snapshot"></div>
+    <div class="acts">
+      <button class="btn" id="btnExport">导出全部数据</button>
+      <button class="btn" id="btnImport">导入数据</button>
+      <button class="btn danger" id="btnReset">恢复默认</button>
+      <input type="file" id="fileImport" accept=".json" style="display:none">
+      <span class="mini-label" id="saveState"></span>
+    </div>
+  </div>
+
+  <div class="card hidden" data-pane="price">
+    <h2><span class="n">1</span>计价层参数</h2>
+    <p class="lead">决定「1 分体验 · 1 小时」值多少钱，以及每月可花多少。</p>
+    <div id="payRows"></div>
+  </div>
+
+  <div class="card hidden" data-pane="dims">
+    <h2><span class="n">2</span>维度：量程、权重、参考标准</h2>
+    <p class="lead">每个维度都能改<b>名称</b>、<b>权重 w</b>（它有多重要）、<b>量程 [下限, 上限]</b>（能打多低、多高，下限可以是负数），以及<b>参考标准</b>——这里写下的分档说明会直接显示在页③ 的打分面板上，打分时对着比即可。</p>
+    <div id="dimGrid"></div>
+    <div id="dimWarn"></div>
+  </div>
+
+  <div class="card hidden" data-pane="comp">
+    <h2><span class="n">3</span>压缩层参数</h2>
+    <p class="lead">连乘会爆炸，压缩层负责「只削峰、不填谷」。断点与指数全都能调，连续性常数由端点自动解出。</p>
+    <div id="compRows"></div>
+    <div id="segFormula" class="formula"></div>
+    <div id="contWarn"></div>
+  </div>
+
+  <div class="card tight hidden" data-pane="comp">
+    <h2>压缩函数曲线（当前参数实时重画）</h2>
+    <p class="lead">双对数坐标。灰虚线是「不压缩」（y = x），浅线是「开平方」对照，主色线是当前的三段幂函数。低档在灰线<b>下方</b>才是对的；一旦跑到上方，就是在「填谷」。</p>
+    <svg id="chart" viewBox="0 0 680 400" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend">
+      <span><i style="background:var(--accent)"></i>当前压缩 S = f(S_raw)</span>
+      <span><i style="background:var(--c-flat)"></i>不压缩 S = S_raw</span>
+      <span><i style="background:var(--c-sqrt)"></i>开平方 √S_raw</span>
+      <span><i class="dot" style="background:var(--tx)"></i>标定样本</span>
+      <span><i class="dot" style="background:var(--warn)"></i>当前评分</span>
+    </div>
+    <div id="chartNote"></div>
+  </div>
+
+  <div class="card hidden" data-pane="neg">
+    <h2><span class="n">4</span>负值处理</h2>
+    <p class="lead">某个维度被打成负数时，总分该怎么算？这里集中调倒贴模式的一切：规则、陡峭度、总闸、各维的负值权重，下面还会实时演示它们对同一套评分的结果差异。</p>
+    <div id="negRows"></div>
+    <div id="negBox"></div>
+  </div>
+
+  <div class="card hidden" data-pane="out">
+    <h2><span class="n">5</span>输出层参数</h2>
+    <div id="outRows"></div>
+  </div>
+
+  <div class="stepbar" id="stepbar-tab-params"></div>
+
+</section>
+
+<!-- ============================ ② k 标定器 ============================ -->
+<section id="tab-kcal" class="hidden">
+  <div class="subtabs" id="subKcalNav" data-box="tab-kcal">
+    <button data-s="intro" class="on">① k 是什么</button>
+    <button data-s="samples">② 标定样本表</button>
+    <button data-s="result">③ 标定结果</button>
+    <button data-s="recal">④ 单游戏粗估</button>
+  </div>
+
+  <div class="card" data-pane="intro">
+    <h2><span class="n">1</span>k 是什么，怎么解出来</h2>
+    <p class="lead">k 是「1 分体验 × 1 小时」值多少钱，单位 <code>元/(h·分)</code>。它不该靠感觉填，而应从历史消费记录里<b>解方程解出来</b>。</p>
+    <div class="formula">单样本：                   kᵢ = 实付ᵢ ÷ ( 累计时长ᵢ × Sᵢ )
+
+比值法：                   k = Σ实付 ÷ Σ(累计时长 × S)
+
+最小二乘（过原点，推荐）： k = Σ(x·y) ÷ Σ(x²)      x = 累计时长 × S,  y = 实付
+
+中位数法：                 k = median( kᵢ )
+
+重标公式（改了任何影响 S 的参数后都要做）：
+                           k_new = k_old × S_old ÷ S_new</div>
+  </div>
+
+  <div class="card hidden" data-pane="samples">
+    <h2><span class="n">2</span>标定样本表</h2>
+    <p class="lead">表里预填的 4 行是<b>占位示例</b>，用来说明算法怎么跑；<b>请替换成真实记录</b>。各维度分按当前的参考标准打即可，改评分会立刻重算下面的 k。</p>
+    <div class="tbl-wrap">
+      <table id="sampTable">
+        <thead id="sampHead"></thead>
+        <tbody id="sampBody"></tbody>
+      </table>
+    </div>
+    <p class="hint-line">表格可左右滚动。列含义：<b>纳入</b>=是否参与拟合（取消勾选 = 剔除后悔样本）；<b>累计时长 / 累计实付</b>=这台游戏总共玩了多少小时、总共花了多少钱。</p>
+    <div class="acts">
+      <button class="btn" id="btnAddSamp">+ 新增一行</button>
+      <button class="btn" id="btnDemoSamp">载入占位示例</button>
+      <button class="btn danger" id="btnClearSamp">清空全部</button>
+    </div>
+  </div>
+
+  <div class="card hidden" data-pane="result">
+    <h2><span class="n">3</span>标定结果</h2>
+    <div class="grid2">
+      <div>
+        <div class="big">
+          <div class="k">推荐 k（最小二乘 · 过原点）</div>
+          <div class="v"><span id="kLS">–</span><span class="u"> 元/(h·分)</span></div>
+        </div>
+        <div class="grid3" style="margin-top:14px">
+          <div class="metric"><div class="k">比值法 Σy/Σx</div><div class="v" id="kRatio">–</div></div>
+          <div class="metric"><div class="k">中位数法</div><div class="v" id="kMed">–</div></div>
+          <div class="metric"><div class="k">有效样本</div><div class="v"><span id="kCount">–</span><span class="u"> 个</span></div></div>
+        </div>
+        <div class="acts">
+          <button class="btn pri" id="btnUseK">采用推荐 k</button>
+        </div>
+        <div id="kDiag"></div>
+      </div>
+      <div>
+        <div class="metric" style="height:auto">
+          <div class="k" style="font-size:12.8px;color:var(--tx);font-weight:600;margin-bottom:8px">怎么读这几个数</div>
+          <p><b>推荐值</b>：让所有样本的预测误差平方和最小，对高时长样本和大额支出更稳健。<br>
+          <b>比值法</b>：最直观，但会被「游玩时间最长的那款」主导。<br>
+          <b>中位数法</b>：最抗极端值，样本少时可以和推荐值对一下。<br>
+          <b>R²</b>：模型解释了多少钱的分布。0.8 以上算不错；低于 0.5 说明「同一套维度解释不了消费」，通常意味着漏了维度（社交需求、当期心情、账号保值）。<br>
+          <b>CV</b>（单样本 k 的变异系数）：&lt;0.3 稳定；0.3~0.6 一般；&gt;0.6 说明 k 这一层太粗，别硬信。</p>
+        </div>
+        <div class="kv" id="kFormula" style="margin-top:18px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card hidden" data-pane="recal">
+    <h2><span class="n">4</span>单游戏粗估</h2>
+    <p class="lead">手里只有一款游戏的真实记录时，用它快速估一个 k：填这款游戏的累计实付、累计有效时长（主动 + η × 被动）和按参考标准打的 S，k = 实付 ÷（有效时长 × S）。多攒几款之后，去「② 标定样本表」用最小二乘拟合更稳。</p>
+    <div class="grid2">
+      <div>
+        <div class="prow">
+          <div class="lab">该游戏累计实付<span class="sym">元</span></div>
+          <div class="ctl"><input type="number" id="rk_pay" step="1" min="0" value="0"><span class="unit">元</span></div>
+          <div class="exp"><details class="why" data-why="rk_pay"><summary>说明</summary><div class="body">到目前为止在这款游戏上一共花掉的钱。</div></details></div>
+        </div>
+        <div class="prow">
+          <div class="lab">累计有效时长<span class="sym">T_eff</span></div>
+          <div class="ctl"><input type="number" id="rk_T" step="1" min="0" value="0"><span class="unit">h</span></div>
+          <div class="exp"><details class="why" data-why="rk_T"><summary>说明</summary><div class="body">一共玩了多少小时（被动时长按 η 折算后合并进去；也可以直接填折算好的总数）。</div></details></div>
+        </div>
+        <div class="prow">
+          <div class="lab">该游戏评分 S<span class="sym">按参考标准打</span></div>
+          <div class="ctl"><input type="number" id="rk_S" step="0.01" value="0" style="width:120px"></div>
+          <div class="exp"><details class="why" data-why="rk_S"><summary>说明</summary><div class="body">按各维参考标准给这款游戏打的总体分（S，压缩后）。<b>独立填写</b>，不随「③ 打分与验算」变化。</div></details></div>
+        </div>
+      </div>
+      <div>
+        <div class="big alt">
+          <div class="k">粗估 k</div>
+          <div class="v"><span id="rk_out">–</span><span class="u"> 元/(h·分)</span></div>
+        </div>
+        <div class="formula" style="white-space:normal">k = 实付 ÷ ( T_eff × S )</div>
+        <div class="acts">
+          <button class="btn pri" id="btnUseRK">采用这个 k</button>
+        </div>
+        <p class="hint-line">粗估只反映这一款游戏的口味；它与「③ 标定结果」给出的 k 有出入很正常 —— 样本多了以后<b>以标定结果为准</b>。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="stepbar" id="stepbar-tab-kcal"></div>
+
+</section>
+
+<!-- ============================ ③ 打分与验算 ============================ -->
+<section id="tab-calc" class="hidden">
+  <div class="subtabs" id="subCalcNav" data-box="tab-calc">
+    <button data-s="score" class="on">① 打分</button>
+    <button data-s="time">② 时间与口径</button>
+    <button data-s="result">③ 结果</button>
+    <button data-s="tiers">④ 档位对照表</button>
+  </div>
+
+  <div class="card" data-pane="score">
+    <h2><span class="n">1</span>打分</h2>
+    <p class="lead">滑块范围就是页① 设的量程（含负值）。每条维度下方是这里写的参考标准，打分时对着比即可。
+      注意 <b>0 只能当底线</b>：表示这一维毫无正面价值（或反感），不是「中间水平」；
+      「一般」该打几分，以参考标准里写的分数为准。</p>
+    <div id="scorePanel"></div>
+    <div class="acts">
+      <button class="btn" id="btnLoadAnchor">载入示例游戏（锚点）</button>
+      <button class="btn" id="btnZeroAll">全部归零</button>
+    </div>
+    <div id="liveWarn"></div>
+  </div>
+
+  <div class="card hidden" data-pane="time">
+    <h2><span class="n">2</span>时间与口径</h2>
+    <p class="lead">「玩多久」是公式里体积那一项，和评分同等重要。<b>月口径与买断口径各存一套时长</b>，来回切换不会丢数字。</p>
+    <div class="seg" id="modeSeg">
+      <button data-m="month" class="on">月 · 长线运营</button>
+      <button data-m="total">总 · 买断 / 终身</button>
+    </div>
+    <div id="timeRows" style="margin-top:6px"></div>
+    <div id="timeEcho"></div>
+  </div>
+
+  <div class="card hidden" data-pane="result">
+    <h2><span class="n">3</span>结果</h2>
+    <div class="grid2">
+      <div>
+        <div class="big" id="vBig">
+          <div class="k" id="vLabel">本月参考氪金 V</div>
+          <div class="v"><span id="V">–</span><span class="u"> 元</span></div>
+        </div>
+        <div class="grid3" style="margin-top:14px">
+          <div class="metric"><div class="k">原始连乘 S_raw</div><div class="v" id="sRaw">–</div></div>
+          <div class="metric"><div class="k">压缩后 S</div><div class="v" id="sCmp">–</div></div>
+          <div class="metric"><div class="k">心理时价 z</div><div class="v"><span id="z">–</span><span class="u"> 元/h</span></div></div>
+        </div>
+        <div style="margin-top:16px" id="segTags"></div>
+        <div class="kv" id="liveFormula" style="margin-top:8px"></div>
+      </div>
+      <div>
+        <div class="metric">
+          <div class="k" style="font-size:12.8px;color:var(--tx);font-weight:600;margin-bottom:10px">口径对照</div>
+          <div class="kv" id="compareBox"></div>
+        </div>
+      </div>
+    </div>
+    <div class="acts" style="margin-top:18px">
+      <button class="btn pri" id="btnSaveBudget">保存到预算列表</button>
+      <span class="mini-label">把当前评分与时长写进「④ 预算与数据」：月口径写「本月时长」（被动时长在各游戏展开行里填），买断口径写「预计总时长」；同名更新，没有就新建</span>
+    </div>
+  </div>
+
+  <div class="card tight hidden" data-pane="tiers">
+    <h2><span class="n">4</span>档位对照表（随参数实时重算）</h2>
+    <p class="lead">用几个固定档位试算，档位名与每一维的分数都能直接改。金额按<b>当前口径</b>计算：长线运营用本月有效时长，买断用预计总时长；最后一行是当前评分。</p>
+    <div class="hint-line" id="tierMode"></div>
+    <div class="tbl-wrap">
+      <table id="tierTable" class="tiers">
+        <thead id="tierHead"></thead>
+        <tbody id="tierBody"></tbody>
+      </table>
+    </div>
+    <p class="hint-line">表格可左右滚动。</p>
+  </div>
+
+  <div class="stepbar" id="stepbar-tab-calc"></div>
+
+</section>
+
+<!-- ============================ ④ 预算与数据 ============================ -->
+<section id="tab-data" class="hidden">
+  <div class="subtabs" id="subDataNav" data-box="tab-data">
+    <button data-s="acct" class="on">① 额度账户</button>
+    <button data-s="budget">② 预算与对账</button>
+    <button data-s="sync" class="hidden">③ 数据同步</button>
+  </div>
+
+  <div class="card" data-pane="acct">
+    <h2><span class="n">1</span>氪金额度账户（总余量）</h2>
+    <p class="lead">每款游戏一个账户：跨月时自动把当月额度 V（= k × S × 本月时长）记进「累计参考」，充值记进「累计支出」，两者相减就是余额。
+      两个数字都可以直接手填；这里的所有数字都只是<b>价格参考</b>，怎么记、记不记由使用者决定。</p>
+    <div id="acctRows"></div>
+    <div class="tbl-wrap" style="margin-top:6px">
+      <table id="acctTbl" class="subs">
+        <thead id="acctHead"></thead>
+        <tbody id="acctBody"></tbody>
+      </table>
+    </div>
+    <p class="hint-line">每行左侧的 <b>▸</b> 可以展开，就地修改本月被动时长、被动折算 η、预计总时长与备注；<b>各维度评分在「② 预算与对账」里展开修改</b>。表格可左右滚动。</p>
+    <details class="offbox" id="offWrap">
+      <summary>未参与记账（<b id="offCount">0</b> 款）—— 不产生每月额度，也就不计入总余量</summary>
+      <div class="tbl-wrap">
+        <table id="offTbl" class="subs">
+          <thead id="offHead"></thead>
+          <tbody id="offBody"></tbody>
+        </table>
+      </div>
+      <p class="hint-line">买断制、已弃坑的游戏通常放在这里：没有每月额度，只有已花掉的钱。</p>
+    </details>
+    <div id="acctSum"></div>
+    <div class="acts">
+      <button class="btn pri" id="btnAcctAdd">＋ 新增游戏</button>
+      <button class="btn" id="btnAcctTick">补结算一个月</button>
+      <button class="btn" id="btnAcctAll">全部改为参与记账</button>
+      <button class="btn danger" id="btnAcctClear">全部改为不参与</button>
+    </div>
+    <h3 class="sub-h">这个余额是怎么算出来的</h3>
+    <div class="kv">
+      <div class="k">公式</div><div class="v"><code>余额 = 累计参考 − 累计支出</code>。两个数字只是普通记录，
+        可以记累计充值、预付卡余额、或任何参照，含义由使用者决定；不想用就放着，不影响别处。</div>
+      <div class="k">自动跨月</div><div class="v">每跨一个月，当月额度 V 会自动加进「累计参考」，并记下结算到哪个月；
+        数字随时可手改，改完之后仍按月继续累加。</div>
+      <div class="k">额度 V</div><div class="v">= k × S × 本月时长，S 取自「② 预算与对账」里该游戏的各维度评分（在那里展开修改）。</div>
+      <div class="k">怎么读</div><div class="v">算出 16 只代表「按这套定价它值 16」—— 全部金额都只是<b>价格参考</b>，不代表必须花多少。</div>
+    </div>
+  </div>
+
+  <div class="card hidden" data-pane="budget">
+    <h2><span class="n">2</span>预算与剩余参考氪金额度</h2>
+    <p class="lead">每款游戏填：<b>本月时长</b>（留空 = 不计入本月预算；被动时长与该游戏专属折算在展开行里填）和<b>本期实际支出</b>；参考氪金 V 由公式自动算出。汇总在表格下方，超支会直接标红。所有金额都只是价格参考。</p>
+    <p class="hint-line">本页用<b>当月口径</b>：本月时长、本期支出、各维度评分，与「② k 标定器」的累计口径相互独立。<br>改评分：去「③ 打分与验算」调好滑块后「保存到预算列表」，或在上面表格里展开直接改。</p>
+    <div id="budgetRows"></div>
+    <div class="tbl-wrap" style="margin-top:6px">
+      <table id="budgetTbl" class="tiers">
+        <thead id="budgetHead"></thead>
+        <tbody id="budgetBody"></tbody>
+      </table>
+    </div>
+    <details class="offbox hidden" id="budgetOffWrap">
+      <summary>买断制 / 未参与记账（<b id="budgetOffCount">0</b> 款）—— 一次性参考，不参与每月额度滚动</summary>
+      <div class="tbl-wrap">
+        <table class="tiers">
+          <thead id="budgetOffHead"></thead>
+          <tbody id="budgetOffBody"></tbody>
+        </table>
+      </div>
+      <p class="hint-line">持续运营游戏请回「① 额度账户」点「参与记账」；两列口径完全一致。</p>
+    </details>
+    <p class="hint-line">「参考氪金 V」= k × S × 本月时长；S 取自页② 游戏库里的各维度评分（改评分这里会跟着变）。表格可左右滚动。</p>
+    <div id="budgetSum"></div>
+    <div class="acts">
+      <button class="btn" id="btnClearB">清空本月时长与支出</button>
+    </div>
+  </div>
+
+  <div class="card hidden" data-pane="sync">
+    <h2><span class="n">3</span>数据同步（手动 · 跨设备）</h2>
+    <p class="lead">不依赖服务器：两台设备各自导出 JSON，用任何方式传文件、再导入合并。
+      <b>手机每月导出一次「本月」，电脑合并后回传「全部」</b>，两端即保持一致。</p>
+
+    <h3 class="sub-h">① 导出</h3>
+    <div class="acts">
+      <button class="btn pri" id="btnExportAll">导出全部</button>
+      <button class="btn" id="btnExportMonth">导出本月游玩时长</button>
+    </div>
+    <div class="kv" style="margin-top:12px">
+      <div class="k">全部</div><div class="v">完整数据（参数、维度、两张表）。用于备份，或电脑回传给手机。</div>
+      <div class="k">本月</div><div class="v">只含本月各游戏的时长与支出，体积很小。手机每月导出一份，交给电脑累加。</div>
+    </div>
+
+    <h3 class="sub-h">② 导入</h3>
+    <div id="mergeRows"></div>
+    <div class="acts">
+      <button class="btn" id="btnImportMerge">导入并合并</button>
+      <button class="btn danger" id="btnImportReplace">导入并覆盖</button>
+      <input type="file" id="fileImport2" accept=".json,application/json" style="display:none">
+    </div>
+
+    <h3 class="sub-h">③ 常规流程</h3>
+    <div class="kv">
+      <div class="k">每月一次</div><div class="v">手机「导出本月游玩时长」→ 文件传到电脑 → 电脑「导入并合并」。</div>
+      <div class="k">回传</div><div class="v">电脑「导出全部」→ 传到手机 → 手机「导入并覆盖」。之后两端一致。</div>
+      <div class="k">为什么可以相加</div><div class="v">月度包是<b>增量</b>：代表这段时间新玩的时长与新花的钱，两个月各导一次互不影响。同一个包重复导入会翻倍，导入时会提示。</div>
+    </div>
+
+    <h3 class="sub-h">④ 合并规则</h3>
+    <div class="kv">
+      <div class="k">累计时长 / 累计实付</div><div class="v">按上面的「合并方式」处理：<b>取较大</b>或<b>相加</b>。</div>
+      <div class="k">评分 / 备注 / 本月时长</div><div class="v">按该条的<b>最后修改时间</b>取较新的那份。</div>
+      <div class="k">维度</div><div class="v">取<b>并集</b>：两边加过的维度都保留，本地独有的不会被删。</div>
+      <div class="k">参数 / 档位 / 口径</div><div class="v">属于「设置」，整份采用<b>导出时间较新</b>的那一份。</div>
+      <div class="k">永不合并</div><div class="v">界面状态（展开的项、主题等）。</div>
+    </div>
+
+    <h3 class="sub-h">当前数据</h3>
+    <div class="kv" id="dataStat"></div>
+    <div id="mergeReport"></div>
+  </div>
+
+  <div class="stepbar" id="stepbar-tab-data"></div>
+</section>
+
+<!-- ============================ ⑤ 设置 ============================ -->
+<section id="tab-set" class="hidden">
+  <div class="card">
+    <h2><span class="n">1</span>外观</h2>
+    <p class="lead">主题立即生效并记住选择；「跟随系统」会在系统切换深浅色时自动跟着变。</p>
+    <div id="themeRows"></div>
+  </div>
+  <div class="card">
+    <h2><span class="n">2</span>数据与安全</h2>
+    <div class="kv">
+      <div class="k">存储位置</div><div class="v">全部数据只存在本机浏览器的 localStorage，<b>不上传任何服务器</b>；断网也能用。</div>
+      <div class="k">备份 / 恢复</div><div class="v">「① 参数总台 · 概览」可导出 JSON 与恢复默认；跨设备同步正在打磨，暂未开放。</div>
+      <div class="k">公式安全网</div><div class="v">改动会影响 S 或时长含义的参数（权重、量程、压缩、负值规则、η、T_max）后，会提示已标定的 k 可能失真 —— 重标与否由使用者决定。</div>
+      <div class="k">删除确认</div><div class="v">删维度、清样本、覆盖导入这类动作都会先弹二次确认。</div>
+    </div>
+  </div>
+  <div class="card">
+    <h2><span class="n">3</span>关于</h2>
+    <div class="kv" id="aboutBox"></div>
+  </div>
+</section>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ==================== MATH-BEGIN ==================== */
+function clamp(v,lo,hi){ return Math.min(hi,Math.max(lo,v)); }
+function num(v,d){ return (v===null||v===undefined||isNaN(v))?'–':Number(v).toFixed(d); }
+/* 金额一律两位小数：存进去之前先圆整，避免浮点尾数堆积（0.1+0.2 那类） */
+function r2(v){ v=Number(v); return isFinite(v)?Math.round(v*100)/100:0; }
+
+/* 端点连续性常数（三段在 a、b 两处左右相等，自动解出）
+   f_L(a)=a  →  c_L = a^(1−αL)
+   f_M(a)=a  →  c_M = a^(1−αM)          （αM=1 时 c_M=1，中段即 S=S_raw）
+   f_H(b)=f_M(b) →  c_H = c_M · b^(αM−αH) */
+function cLow(a,aL){ return a>0 ? Math.pow(a,1-aL) : 1; }
+function cMid(a,aM){ return a>0 ? Math.pow(a,1-aM) : 1; }
+function cHigh(a,aM,b,aH){ return cMid(a,aM)*Math.pow(b,aM-aH); }
+
+/* 三段幂函数压缩（对量值作用，符号保留） */
+function compressS(x,P){
+  if(!P.om) return x;
+  if(x<0&&!P.negComp) return x;   /* 负值默认不过压缩层：负多少算多少 */
+  var m=Math.abs(x), sgn=x<0?-1:1;
+  if(m===0) return 0;
+  var a=Math.max(P.a,0), b=Math.max(P.b,a+1e-6), aM=(P.aM===undefined?1:P.aM);
+  var out;
+  if(m<=a) out=cLow(a,P.aL)*Math.pow(m,P.aL);
+  else if(m<=b) out=cMid(a,aM)*Math.pow(m,aM);
+  else out=cHigh(a,aM,b,P.aH)*Math.pow(m,P.aH);
+  return sgn*out;
+}
+
+/* 原始统计量：量值积 mag、加权和 B、有效权重和 W、负分个数 negs、是否归零 */
+function rawProduct(vals,dims){
+  var mag=1,magN=1,B=0,Bn=0,W=0,Wn=0,negs=0,parts=[],zero=false;
+  for(var i=0;i<dims.length;i++){
+    var d=dims[i], v=vals[d.id];
+    if(v===undefined||v===null||isNaN(v)) v=0;
+    v=Number(v);
+    var w=d.w||0, nw=(d.nw===undefined||d.nw===null)?w:(Number(d.nw)||0);
+    if(w===0&&nw===0){ parts.push({k:d.name,v:'停用'}); continue; }
+    if(w>0){
+      B+=v*w; W+=w;
+      if(v===0){ zero=true; parts.push({k:d.name+' = 0',v:'归零'}); continue; }
+      if(v<0) negs++;
+      var t=Math.pow(Math.abs(v),w);
+      mag*=t;
+      parts.push({k:d.name+'^'+d.w+(v<0?'（负）':''),v:t.toFixed(4)});
+    }else{
+      /* 正值权重为 0、但负值权重 >0：只参与负值公式 */
+      if(v<0) negs++;
+      parts.push({k:d.name+'^0（仅负值）',v:'—'});
+    }
+    if(nw>0){ Bn+=v*nw; Wn+=nw; magN*=Math.pow(Math.abs(v),nw); }
+  }
+  return {mag:mag,magN:magN,B:B,Bn:Bn,W:W,Wn:Wn,negs:negs,zero:zero,parts:parts,sign:(negs%2)?-1:1};
+}
+
+/* 综合：给定各维取值 → S_raw 与压缩后 S
+   负值处理（唯一规则）：硬否决  S_raw = −C · A^(W₋ − Σxᵢnwᵢ) */
+function SOf(vals,dims,P){
+  var r=rawProduct(vals,dims), sraw, mode;
+  if(r.zero){ sraw=0; mode='归零'; }
+  else if(r.negs>0){
+    sraw=-P.negC*Math.pow(Math.max(P.negA,1.000001), r.Wn-r.Bn); mode='倒贴模式';
+  }else{ sraw=r.mag; mode='正'; }
+  var s=compressS(sraw,P), m=Math.abs(sraw), seg;
+  if(!P.om) seg='未压缩';
+  else if(m<=Math.max(P.a,0)) seg='低档';
+  else if(m<=Math.max(P.b,P.a)) seg='中档';
+  else seg='高档';
+  return {mag:r.mag,magN:r.magN,B:r.B,Bn:r.Bn,W:r.W,Wn:r.Wn,negs:r.negs,zero:r.zero,sign:r.sign,
+          sraw:sraw,s:s,seg:seg,parts:r.parts,mode:mode};
+}
+
+/* 有效时长：用的是「③ 打分与验算 · 时间与口径」里的那组时长，与参数总台互不影响。
+   η 与 T_max 属于公式系数，仍在「① 参数总台 · 计价层」。 */
+function calcOf(mode){
+  var c=S.calc||(S.calc={}), m=((mode||S.mode)==='total')?'total':'month';
+  if(!c.month&&!c.total){                    /* 兼容更早的扁平结构：就地升级成双口径 */
+    var ta=Number(c.Ta), tp=Number(c.Tp);
+    c.month={Ta:0,Tp:0}; c.total={Ta:0,Tp:0};
+    c[m]={Ta:(isFinite(ta)?ta:0), Tp:(isFinite(tp)?tp:0)};
+  }
+  if(!c.month) c.month={Ta:0,Tp:0};          /* 半个口径缺失时补齐，避免读出 undefined */
+  if(!c.total) c.total={Ta:0,Tp:0};
+  var d=c[m];
+  if(!isFinite(Number(d.Ta))) d.Ta=0;
+  if(!isFinite(Number(d.Tp))) d.Tp=0;
+  return d;                                  /* 返回活对象：界面会就地改它 */
+}
+function TUsed(mode){
+  var c=calcOf(mode), P=S.P;
+  var t=Number(c.Ta||0)+Number(P.eta||0)*Number(c.Tp||0);
+  if(P.Tmax>0 && t>0) t=P.Tmax*(1-Math.exp(-t/P.Tmax));
+  return t;
+}
+
+/* 某游戏/样本的被动折算：留空 = 用全局 η；可为负（烦人日常）或 0（纯挂机） */
+function etaOf(x){
+  return (x===undefined||x.eta===undefined||x.eta===null||x.eta==='')?S.P.eta:Number(x.eta);
+}
+/* k 标定 */
+function solveK(samples,dims,P){
+  var rows=[], ks=[], Sx=0,Sy=0,Sxy=0,Sxx=0;
+  for(var i=0;i<samples.length;i++){
+    var sm=samples[i], r=SOf(sm.s,dims,P);
+    /* 时长口径与主公式一致：T_eff = 主动 + η×被动（累计量不做饱和折算）；
+       η 取该样本自己的被动折算，留空才用全局 */
+    var tEff=(sm.T||0)+etaOf(sm)*(sm.Tp||0);
+    var x=tEff*r.s, y=(sm.pay||0);
+    var ki=(Math.abs(x)>1e-9)?y/x:NaN;
+    var ok=!!sm.on && r.s>0 && Math.abs(x)>1e-9;
+    var why=ok?'':(!sm.on?'未纳入':(r.s<=0?'S≤0（倒贴模式，不参与标定）':'x = 0'));
+    if(ok){ Sx+=x; Sy+=y; Sxy+=x*y; Sxx+=x*x; ks.push(ki); }
+    rows.push({i:i,name:sm.name,S:r.s,sraw:r.sraw,x:x,y:y,ki:ki,ok:ok,why:why,seg:r.seg});
+  }
+  var n=ks.length;
+  var kRatio=Sx!==0?Sy/Sx:NaN;
+  var kLS=Sxx!==0?Sxy/Sxx:NaN;
+  var sorted=ks.slice().sort(function(a,b){return a-b;});
+  var kMed=n?(n%2?sorted[(n-1)/2]:(sorted[n/2-1]+sorted[n/2])/2):NaN;
+  var ybar=n?Sy/n:0, sst=0, sse=0;
+  for(var j=0;j<rows.length;j++){
+    if(!rows[j].ok) continue;
+    sst+=Math.pow(rows[j].y-ybar,2);
+    rows[j].res=rows[j].y-kLS*rows[j].x;
+    sse+=Math.pow(rows[j].res,2);
+  }
+  var r2=(n && sst>0)?1-sse/sst:NaN;
+  var mean=n?ks.reduce(function(a,b){return a+b;},0)/n:NaN, sd=0;
+  if(n>1){ for(var q=0;q<n;q++) sd+=Math.pow(ks[q]-mean,2); sd=Math.sqrt(sd/(n-1)); }
+  var cv=(n>1 && mean!==0)?Math.abs(sd/mean):NaN;
+  return {rows:rows,kRatio:kRatio,kLS:kLS,kMed:kMed,r2:r2,cv:cv,n:n,
+          Sx:Sx,Sy:Sy,Sxx:Sxx,Sxy:Sxy};
+}
+/* ==================== MATH-END ==================== */
+
+/* ==================== 默认值 ==================== */
+var DIM_DEFAULT=[
+ {id:'theta',name:'题材契合 θ',w:1,nw:3,min:0,max:1,val:1,anchors:[
+   {v:0,t:'特别反感'},{v:0.2,t:'比较反感'},{v:0.4,t:'不太喜欢'},{v:0.5,t:'中立'},
+   {v:0.6,t:'有点兴趣，会去试'},{v:0.8,t:'很对味，会主动关注'},{v:1,t:'心头好，闭眼入'}]},
+ {id:'iota',name:'感官带宽 ι',w:1,nw:3,min:0,max:1,val:1,anchors:[
+   {v:0.1,t:'放置／挂机'},{v:0.2,t:'纯文本阅读（书）'},{v:0.3,t:'文字冒险／视觉小说'},
+   {v:0.4,t:'2D／卡牌／策略'},{v:0.55,t:'线性 3D／精品独立'},{v:0.7,t:'大型 RPG／高保真 3D'},
+   {v:0.85,t:'顶级 3A 开放世界'},{v:1,t:'体验过的最强沉浸（3A＋VR）'}]},
+ {id:'q',name:'质量 q',w:1,nw:1,min:-2,max:4,val:1,anchors:[
+   {v:-2,t:'负分底线（给差评用）'},{v:0,t:'粗制滥造'},{v:0.5,t:'半成品、细节难看'},
+   {v:1,t:'合格但平庸，没记忆点'},{v:1.5,t:'有打磨，个别亮点'},{v:2,t:'整体精良，细节用心'},
+   {v:3,t:'可作范本的工业水准'},{v:4,t:'满分'}]},
+ {id:'f',name:'体验 f',w:1,nw:1,min:-2,max:4,val:1,anchors:[
+   {v:-2,t:'负分底线（给差评用）'},{v:0,t:'逼氪地狱／故意恶心人／根本不好玩'},
+   {v:0.5,t:'明显逼氪，或玩法乏味'},{v:1,t:'常规水准，玩得下去'},{v:1.5,t:'有乐趣点，付费克制'},
+   {v:2,t:'真的好玩，且不乱要钱'},{v:3,t:'上瘾＋良心，找不到别扭处'},{v:4,t:'满分'}]},
+ {id:'c',name:'社区 c',w:0.5,nw:0.5,min:-2,max:4,val:1,anchors:[
+   {v:-2,t:'负分底线（给差评用）'},{v:0,t:'毫无社区可言'},{v:0.5,t:'戾气严重，影响游玩'},
+   {v:1,t:'有人讨论，平淡'},{v:1.5,t:'人比较多，氛围较好'},{v:2,t:'氛围好，有二创、有一起玩的人'},
+   {v:3,t:'社区本身就是玩法'},{v:4,t:'满分'}]},
+ {id:'e',name:'情感 e',w:1,nw:1,min:-2,max:4,val:1,anchors:[
+   {v:-2,t:'负分底线（给差评用）'},{v:0,t:'伤害感情'},{v:0.5,t:'毫无感觉'},{v:1,t:'一般'},
+   {v:2,t:'有专属记忆／陪伴感'},{v:3,t:'本命，愿为情怀付费'},{v:4,t:'满分'}]}
+];
+var P_DEFAULT={
+  k:0, eta:0, Tmax:0, B:0,
+  om:true, a:0.8, aL:1.2, aM:1, b:4, aH:0.4,
+  negMode:'base', negA:2, negC:2, negComp:false,
+  band:30, showSqrt:false, showNoComp:false
+};
+/* ============ 两张分开的表（v12）============
+   为什么不共用一份：**游戏时长与体验分是随时间变化的**。
+     · S.samples = k 标定样本，口径是「**累计**」：这台游戏一共玩了多少小时、一共花了多少钱、
+       一个总体印象的各维度评分 → 只用来解 k
+     · S.budget  = 预算与数据，口径是「**当下**」：本月有效时长、本期支出、当前的各维度评分
+       → 用来算每月额度 V、维护额度账户
+   两张表各自增删改，靠**游戏名**对应；页③ 的「保存到预算列表」负责把当次打分送过去。 */
+/* k 标定样本：name 名称 / T 主动累计时长 h / Tp 被动累计时长 h / pay 累计实付 元
+   s{} 各维度评分 / on 是否纳入标定 / note 备注 / updatedAt 最后修改时间 */
+var SAMP_SAMPLES=[
+ {name:'示例A · 锚点游戏（占位）',T:180,Tp:0,pay:182,on:true,
+  note:'填写真实记录',updatedAt:'2026-09-01T00:00:00.000Z',
+  s:{theta:0.85,iota:0.7,q:3,f:0.6,c:1.5,e:2.25}},
+ {name:'示例B · 喜欢的买断（占位）',T:60,Tp:12,pay:128,on:true,
+  note:'买断制，通关即止',updatedAt:'2026-09-01T00:00:00.000Z',
+  s:{theta:0.9,iota:0.75,q:2.5,f:2,c:1,e:2}},
+ {name:'示例C · 一般水平（占位）',T:20,Tp:0,pay:1.5,on:true,
+  note:'',updatedAt:'2026-09-01T00:00:00.000Z',
+  s:{theta:0.6,iota:0.5,q:1,f:1,c:1,e:1}},
+ {name:'示例D · 后悔样本（占位，已排除）',T:40,Tp:0,pay:60,on:false,
+  note:'冲动充值的那款，不参与标定',updatedAt:'2026-09-01T00:00:00.000Z',
+  s:{theta:0.7,iota:0.6,q:2,f:0.4,c:1.2,e:1}}
+];
+/* 预算与数据：monthT 本月有效时长 h（留空=不计入预算） / spent 本期实际支出 元
+   due 应付（累计该花额度） / paid 实付（累计已付） / tick 结算到哪个月 / on 是否参与记账
+   s{} 当前各维度评分（和标定表各存一份，因为体验分会随时间变） */
+var SAMP_BUDGET=[
+ {name:'示例A · 锚点游戏（占位）',monthT:15,spent:15,due:212.47,paid:182,tick:'2026-09',
+  on:true,note:'额度账户示例：每月攒 15.18 元',updatedAt:'2026-09-01T00:00:00.000Z',
+  s:{theta:0.85,iota:0.7,q:3,f:0.6,c:1.5,e:2.25}},
+ {name:'示例B · 喜欢的买断（占位）',monthT:0,spent:0,due:0,paid:128,tick:'',on:false,
+  note:'买断制，设为不参与记账',updatedAt:'2026-09-01T00:00:00.000Z',
+  s:{theta:0.9,iota:0.75,q:2.5,f:2,c:1,e:2}},
+ {name:'示例E · 本月在玩（占位）',monthT:12,spent:0,due:38.86,paid:0,tick:'2026-09',
+  on:true,note:'每月都在攒，攒了四个月',updatedAt:'2026-09-01T00:00:00.000Z',
+  s:{theta:0.75,iota:0.6,q:2,f:1.4,c:1,e:1.8}}
+];
+/* 档位对照表的四个档（p = 新增维度时的自动取值位置；v 可在页③ 直接编辑） */
+var TIER_DEFAULT=[
+ {n:'敷衍 / 不对味', p:0.20, v:{theta:0.3,iota:0.35,q:1,f:1,c:1,e:1}},
+ {n:'一般',         p:0.35, v:{theta:0.6,iota:0.5,q:1,f:1,c:1,e:1}},
+ {n:'好游戏',       p:0.65, v:{theta:0.85,iota:0.7,q:2,f:1.5,c:1.5,e:1.5}},
+ {n:'神作',         p:0.90, v:{theta:0.9,iota:0.9,q:3.5,f:3,c:2,e:2}}
+];
+/* 「载入示例游戏」用的锚点评分（独立于可编辑的档位表） */
+var ANCHOR_GAME={theta:0.85,iota:0.7,q:3,f:0.6,c:1.5,e:2.25};
+
+var LS_KEY='hj_workbench_v2';
+var SCHEMA=10;
+/* S.calc      = 页③ 那次打分用的时长（与页① 计价层分开）
+   S.budgetCap = 页④ 的月预算上限（与页① 的公式闸门 B 分开）
+   S.recal     = 页② 重标器的三个输入（独立填写）
+   S.mergeMode = 合并「全量包」时累计量的处理方式：sum 相加 / max 取较大
+   S.periods   = 已导入过的月度增量包，防止同一个包被重复相加 */
+var S={calc:{month:{Ta:0,Tp:0}, total:{Ta:0,Tp:0}}, budgetCap:0,
+       recal:{pay:0,T:0,S:0}, commonT:0, mergeMode:'max', periods:[], lastName:'',
+       dims:JSON.parse(JSON.stringify(DIM_DEFAULT)),
+       P:JSON.parse(JSON.stringify(P_DEFAULT)),
+       samples:[],
+       budget:[],
+       tiers:JSON.parse(JSON.stringify(TIER_DEFAULT)),
+       mode:'total'};
+var refOpen={};
+var whyOpen={};
+/* 容器级事件只绑一次（boot 可能被重复调用，避免监听器叠加） */
+var BOUND={};
+/* 折叠状态记录（details 的 toggle 不冒泡，用捕获阶段监听） */
+document.addEventListener('toggle',function(e){
+  var el=e.target;
+  if(!el||el.tagName!=='DETAILS') return;
+  var w=el.getAttribute('data-why');
+  if(w!==null&&w!==undefined){ whyOpen[w]=el.open; return; }
+  var r=el.getAttribute('data-ref');
+  if(r!==null&&r!==undefined){ refOpen[+r]=el.open; }
+},true);
+
+/* ==================== 工具 ==================== */
+var $=function(id){ return document.getElementById(id); };
+function set(id,v){ var e=$(id); if(e) e.textContent=v; }
+function esc(s){ return String(s===undefined||s===null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function dimById(id){ for(var i=0;i<S.dims.length;i++) if(S.dims[i].id===id) return S.dims[i]; return null; }
+function valsOf(){ var o={}; S.dims.forEach(function(d){ o[d.id]=d.val; }); return o; }
+/* 某一档位在各维上的取值（缺项用该维当前分兜底） */
+function tierVals(t){
+  var o={};
+  S.dims.forEach(function(d){ o[d.id]=(t.v&&t.v[d.id]!==undefined)?t.v[d.id]:d.val; });
+  return o;
+}
+function kvHTML(pairs){
+  return pairs.map(function(p){ return '<div class="k">'+p.k+'</div><div class="v">'+p.v+'</div>'; }).join('');
+}
+/* ---------- k 保护提示 ----------
+   权重、量程、压缩、负值规则、η、T_max 一旦改动，S（或 T_eff）的含义就变了：
+   用旧参数解出的 k 对新参数不再成立。这里只提示、不自动改 —— 重标与否由使用者决定。
+   同类提示 30 秒内只弹一次，避免拖滑块时连环轰炸。 */
+var K_DIRTY=false, K_WARN_AT=0;
+function kDirty(what){
+  K_DIRTY=true;
+  var now=Date.now();
+  if(now-K_WARN_AT<30000) return;
+  K_WARN_AT=now;
+  toast('「'+what+'」改变了 S（或时长）的含义，已标定的 k 可能失真 —— 建议到「② k 标定器」重新标定，或用重标器维持锚点金额','warn');
+}
+function save(){
+  S.updatedAt=new Date().toISOString();
+  try{ localStorage.setItem(LS_KEY,JSON.stringify(S)); flash('已自动保存'); }catch(e){}
+}
+var flashT=null;
+function flash(msg){
+  var el=$('saveState'); if(!el) return;
+  el.textContent=msg;
+  if(flashT) clearTimeout(flashT);
+  flashT=setTimeout(function(){ el.textContent=''; },1600);
+}
+function toast(msg,kind,actions){
+  var box=document.createElement('div');
+  box.className='toast'+(kind?' '+kind:'');
+  var h=msg;
+  if(actions&&actions.length){
+    h+='<div class="row">'+actions.map(function(a,i){
+      return '<button class="'+(a.cls||'yes')+'" data-a="'+i+'">'+esc(a.label)+'</button>'; }).join('')+'</div>';
+  }
+  box.innerHTML=h;
+  if(actions&&actions.length){
+    box.addEventListener('click',function(e){
+      var i=e.target.getAttribute&&e.target.getAttribute('data-a');
+      if(i===null||i===undefined) return;
+      /* 先执行动作、再移除 —— 动作里可能还要读 toast 中的输入框 */
+      try{ actions[+i].fn(); }
+      finally{ if(box.parentNode) box.parentNode.removeChild(box); }
+    });
+  }
+  $('toast').appendChild(box);
+  /* 带输入框的弹窗（比如「保存到预算列表」）不自动消失：
+     打字打到一半弹窗没了，比弹窗多留一会儿恼火得多。按钮点了才会关。 */
+  var sticky=(actions&&actions.length)&&/<input/.test(h);
+  if(!sticky) setTimeout(function(){ if(box.parentNode) box.parentNode.removeChild(box); },
+    (actions&&actions.length)?9000:2600);
+}
+function confirm2(msg,cb,okLabel){
+  toast(msg,'warn',[{label:'取消',cls:'no',fn:function(){}},
+                    {label:okLabel||'确认',cls:'yes',fn:cb}]);
+}
+var SCHEMA_V12=13;
+/* 两个规范化器 —— load、合并、新建都走它们，保证字段齐全 */
+function normSample(x){
+  return {name:x.name||'未命名游戏', T:Number(x.T||0), Tp:Number(x.Tp||0), pay:Number(x.pay||0),
+          eta:(x.eta===undefined||x.eta===null||x.eta==='')?'':Number(x.eta),
+          on:!!x.on, note:x.note||'', updatedAt:x.updatedAt||new Date().toISOString(), s:x.s||{}};
+}
+/* 预算与数据条目：due 应付 / paid 实付 都是可手填的累计值，
+   tick 记录结算到哪个月；每跨一个月，due 自动累加一份当月额度 V。 */
+function normBudget(x){
+  return {name:x.name||'未命名游戏',
+          monthT:(x.monthT===undefined?'':Number(x.monthT)||0),
+          totalT:(x.totalT===undefined?'':Number(x.totalT)||0),
+          spent:Number(x.spent||0),
+          due:Number(x.due||0),
+          paid:Number(x.paid!==undefined?x.paid:(x.pay||0)),
+          Tp:(x.Tp===undefined||x.Tp===null||x.Tp==='')?'':(Number(x.Tp)||0),
+          eta:(x.eta===undefined||x.eta===null||x.eta==='')?'':Number(x.eta),
+          tick:String(x.tick||'').trim(), on:(x.on===undefined?true:!!x.on),
+          startAt:String(x.startAt||'').trim(),   /* 只作迁移用，upgradeBudgetV12 消费后就删 */
+          /* totalT 预计总时长：买断口径用，与每月额度无关 */
+          note:x.note||'', updatedAt:x.updatedAt||new Date().toISOString(), s:x.s||{}};
+}
+/* 老存档（v10/v11：一张 samples 兼顾两用）→ 拆成两张表 */
+function migrateBudgetFrom(o){
+  var out=[];
+  (o.samples||[]).forEach(function(sm){
+    var hasMonth=(sm.monthT!==undefined&&sm.monthT!==null&&sm.monthT!=='');
+    var hasMoney=(Number(sm.spent||0)!==0)||(Number(sm.pay||0)!==0);
+    var hasStart=!!String(sm.startAt||'').trim();
+    if(!(hasMonth||hasStart||hasMoney)) return;
+    out.push(normBudget({name:sm.name, monthT:hasMonth?sm.monthT:0, spent:sm.spent,
+                         paid:sm.pay, startAt:sm.startAt, note:sm.note,
+                         updatedAt:sm.updatedAt, s:sm.s}));
+  });
+  return out;
+}
+/* 老存档的「起算月」折算成 due + tick（一次性迁移） */
+function upgradeBudgetV12(b, V){
+  if(b.due===undefined) b.due=0;
+  if(!b.tick){
+    var sm=parseMonth(b.startAt);
+    var cur=curMonth();
+    if(sm!==null){ var n=cur-sm+1; if(n>0) b.due+=V*n; }
+    b.tick=monthLabel(cur);
+  }
+  if(b.paid===undefined) b.paid=Number(b.pay||0);
+  delete b.startAt; delete b.pay;
+  return b;
+}
+function load(){
+  try{
+    var raw=localStorage.getItem(LS_KEY);
+    if(!raw) return;
+    var o=JSON.parse(raw);
+    if(o.dims&&o.dims.length){
+      S.dims=o.dims.map(function(d,idx){
+        var def=DIM_DEFAULT[idx]||DIM_DEFAULT[0];
+        return {id:d.id||def.id, name:d.name||def.name, w:(d.w===undefined?def.w:d.w),
+                nw:(d.nw===undefined?((d.w===undefined?def.w:d.w)||0):Number(d.nw)||0),
+                min:(d.min===undefined?def.min:d.min), max:(d.max===undefined?def.max:d.max),
+                val:(d.val===undefined?def.val:d.val),
+                anchors:(d.anchors&&d.anchors.length)?d.anchors:JSON.parse(JSON.stringify(def.anchors))};
+      });
+    }
+    if(o.P) for(var kk in P_DEFAULT) if(o.P[kk]!==undefined) S.P[kk]=o.P[kk];
+    /* 保量值 / 奇偶定号已废除：老存档里若还存着，就地归为硬否决 */
+    if(S.P.negMode!=='base') S.P.negMode='base';
+    if(o.samples) S.samples=o.samples.map(normSample);
+    if(o.budget&&o.budget.length) S.budget=o.budget.map(normBudget);
+    else if(o.samples) S.budget=migrateBudgetFrom(o);      /* v10/v11 老存档：拆表 */
+    if(o.updatedAt) S.updatedAt=o.updatedAt;
+    if(o.tiers&&o.tiers.length){
+      S.tiers=o.tiers.map(function(t,idx){
+        var def=TIER_DEFAULT[idx]||TIER_DEFAULT[0];
+        return {n:t.n||def.n, p:(t.p===undefined?def.p:t.p), v:t.v||{}};
+      });
+    }
+    if(o.mode) S.mode=o.mode;
+    /* 三处「不共用」的独立值：老存档里没有就地新建，有则沿用 */
+    var oc=o.calc||{};
+    if(oc.month&&oc.total){
+      S.calc={month:{Ta:Number(oc.month.Ta||0),Tp:Number(oc.month.Tp||0)},
+              total:{Ta:Number(oc.total.Ta||0),Tp:Number(oc.total.Tp||0)}};
+    }else{                                   /* 老的扁平结构：按时长落进对应口径 */
+      var fTa=(oc.Ta!==undefined)?Number(oc.Ta):((o.P&&o.P.Ta!==undefined)?Number(o.P.Ta):15);
+      var fTp=(oc.Tp!==undefined)?Number(oc.Tp):((o.P&&o.P.Tp!==undefined)?Number(o.P.Tp):0);
+      S.calc={month:{Ta:15,Tp:0}, total:{Ta:60,Tp:0}};
+      S.calc[(o.mode==='total')?'total':'month']={Ta:fTa,Tp:fTp};
+    }
+    if(o.mergeMode) S.mergeMode=(o.mergeMode==='sum')?'sum':'max';
+    S.periods=Array.isArray(o.periods)?o.periods.slice(0):[];
+    S.budgetCap=Number(o.budgetCap!==undefined?o.budgetCap:((o.P&&o.P.B!==undefined)?o.P.B:0));
+    S.recal={pay:Number((o.recal&&o.recal.pay)||0), T:Number((o.recal&&o.recal.T)||0), S:Number((o.recal&&o.recal.S)||0)};
+    S.commonT=Number(o.commonT)||0;
+    /* 预算条目：v12 的「起算月」折算成 due + tick */
+    S.budget.forEach(function(b){ upgradeBudgetV12(b, budgetV(b).V); });
+    /* 老版本数据补齐字段后立刻落盘。
+       注意：这里不走 save()、不改 S.updatedAt —— 否则每次打开都把本机标成「较新」，
+       合并时就会永远采用本机的设置，判据失效。 */
+    try{ localStorage.setItem(LS_KEY,JSON.stringify(S)); }catch(e){}
+  }catch(e){}
+}
+
+/* ==================== ① 计价层 ==================== */
+function prow(lab,sym,ctl,exp,id){
+  id=id||lab;
+  return '<div class="prow"><div class="lab">'+lab+'<span class="sym">'+sym+'</span></div>'+
+    '<div class="ctl">'+ctl+'</div>'+
+    '<div class="exp"><details class="why"'+(whyOpen[id]?' open':'')+' data-why="'+esc(id)+'">'+
+    '<summary>说明</summary><div class="body">'+exp+'</div></details></div></div>';
+}
+function renderPay(){
+  var P=S.P;
+  var h='';
+  h+=prow('个人常数','k',
+    '<input type="number" id="p_k" step="0.005" value="'+P.k+'"><span class="unit">元/(h·分)</span>',
+    '整个系统的价格锚。含义：<b>1 分体验玩 1 小时值多少钱</b>。它不该靠感觉填 —— 去页② 用历史消费解出来。'+
+    '改了任何影响 S 的参数（权重、量程、压缩）之后，k 必须重标，否则熟悉的几个数字会集体漂移。');
+  h+=prow('被动折算','η',
+    '<input type="number" id="p_eta" step="0.05" value="'+P.eta+'">',
+    '<code>T_eff = T主动 + η × T被动</code>，默认 0.3 —— 挂机 10 小时只按 3 小时计。'+
+    '理由：没在玩的时长不该按全价付钱。设 0 = 完全不认，设 1 = 与主动等值。');
+  h+=prow('时长饱和上限','T_max',
+    '<input type="number" id="p_Tmax" step="10" value="'+P.Tmax+'"><span class="unit">h（0 = 关闭）</span>',
+    '可选。开启后按 <code>T_max×(1−e^(−T/T_max))</code> 折算，即<b>边际递减</b>：玩到 200 小时后，'+
+    '每多一小时的价值明显低于第 10 小时。注意它<b>连短时长也一起压</b>（T_max=100 时 15 h 变成 13.93 h），所以一旦开启必须重标 k。建议先别开。');
+  h+=prow('预算硬上限','B',
+    '<input type="number" id="p_B" step="10" value="'+P.B+'"><span class="unit">元（0 = 不限）</span>',
+    '兜底闸门，按月计。<code>V显示 = min(V, B)</code>。公式算的是「值多少」，不是「该花多少」；'+
+    '一旦月总支出超过 B，就该按 z 排序只留最值的几个。建议填一个自己认的数。');
+  $('payRows').innerHTML=h;
+  ['p_k','p_eta','p_Tmax','p_B'].forEach(function(id){
+    $(id).addEventListener('input',function(){
+      S.P.k=parseFloat($('p_k').value)||0;
+      S.P.eta=parseFloat($('p_eta').value)||0;
+      S.P.Tmax=parseFloat($('p_Tmax').value)||0;
+      S.P.B=parseFloat($('p_B').value)||0;
+      save(); refreshAll();
+    });
+  });
+}
+
+/* ==================== ③ 时间与口径 ==================== */
+function renderTime(){
+  var mode=S.mode, c=calcOf(mode), P=S.P, h='';
+  h+=prow('主动时长','T主动','<input type="number" id="t_Ta" step="1" value="'+c.Ta+'"><span class="unit">h</span>',
+    '<b>真正在玩</b>的时间：有操作、有决策的部分。当前是<b>'+
+    (mode==='total'?'买断口径：预计总时长':'月口径：本月有效时长')+'</b>。','time-Ta');
+  h+=prow('被动时长','T被动','<input type="number" id="t_Tp" step="1" value="'+c.Tp+'"><span class="unit">h</span>',
+    '<b>挂机、日常、收菜</b>一类：人在但没在玩。按折算系数打折计入，不按全价算。','time-Tp');
+  h+=prow('折算系数','η',
+    '<span class="num">'+P.eta+'</span><span class="unit">（在「① 参数总台 · 计价层」调整）</span>',
+    '<code>T_eff = T主动 + η × T被动</code>'+
+    '；饱和上限 T_max = '+P.Tmax+
+    '（0 = 关闭）。两者都是公式系数，放在参数总台。','time-eta');
+  $('timeRows').innerHTML=h;
+  ['Ta','Tp'].forEach(function(f){
+    var el=$('t_'+f);
+    if(el) el.addEventListener('input',function(){
+      var v=parseFloat(el.value); if(isNaN(v)) v=0;
+      calcOf(S.mode)[f]=v;
+      save(); refreshAll();
+    });
+  });
+  renderTimeEcho();
+}
+function renderTimeEcho(){
+  if(!$('timeEcho')) return;
+  var P=S.P, c=calcOf(S.mode);
+  var raw=Number(c.Ta||0)+P.eta*Number(c.Tp||0), T=TUsed();
+  var s0=SOf(valsOf(),S.dims,P).s;
+  $('timeEcho').innerHTML='<div class="kv" style="margin-top:18px">'+kvHTML([
+    {k:'折算过程',v:'('+c.Ta+' + '+P.eta+'×'+c.Tp+') = '+num(raw,2)+' h'+
+      (P.Tmax>0?('　→ 过饱和上限 '+P.Tmax+' → <b class="hl">'+num(T,2)+' h</b>'):'　→ <b class="hl">T_eff = '+num(T,2)+' h</b>')},
+    {k:'时长这一项',v:'<span class="mono">V = T_eff × z = '+num(T,2)+' h × '+num(P.k*s0,4)+
+      ' 元/h = '+num(P.k*s0*T,2)+' 元</span>'},
+    {k:'两个口径的时长',v:'月 · 长线 <b>'+num(TUsed('month'),2)+' h</b>　·　'+
+      '总 · 买断 <b>'+num(TUsed('total'),2)+' h</b>　<em>各自独立保存，切口径不覆盖</em>'}
+  ])+'</div>';
+}
+
+/* ==================== ① 维度与参考标准 ==================== */
+function renderDims(){
+  var h='';
+  S.dims.forEach(function(d,i){
+    var lo=Math.min(d.min,0), hi=Math.max(d.max,d.min+0.01);
+    h+='<div class="dim-block">';
+    h+='<div class="head"><input type="text" class="d_name" data-i="'+i+'" value="'+esc(d.name)+'">'+
+       '<span class="tick">'+(d.w>0?('权重 '+d.w+'　参与计算'):'已停用')+'</span>'+
+       '<div class="acts-inline"><button class="btn sm danger" data-dimdel="'+i+'">删除此维度</button></div>'+
+       '</div>';
+    h+='<div class="ctl-row">'+
+       '<span class="mini-label">权重 w</span><input type="number" class="d_w" data-i="'+i+'" step="0.1" min="0" max="3" value="'+d.w+'" style="width:76px">'+
+       '<span class="mini-label">下限</span><input type="number" class="d_min" data-i="'+i+'" step="0.05" value="'+d.min+'" style="width:84px">'+
+       '<span class="mini-label">上限</span><input type="number" class="d_max" data-i="'+i+'" step="0.05" value="'+d.max+'" style="width:84px">'+
+       '</div>';
+    h+='<div class="ctl-row" style="margin-top:12px">'+
+       '<span class="mini-label">当前分</span>'+
+       '<input type="range" class="d_val" data-i="'+i+'" min="'+lo+'" max="'+hi+'" step="0.01" value="'+d.val+'">'+
+       '<input type="number" class="d_valnum" data-i="'+i+'" step="0.01" value="'+d.val+'" style="width:88px">'+
+       '</div>';
+    h+='<details class="ref"'+(refOpen[i]?' open':'')+' data-ref="'+i+'">'+
+       '<summary>参考标准 · '+d.anchors.length+' 档（可自行编写）</summary><div class="body">';
+    d.anchors.forEach(function(a,j){
+      h+='<div class="anchor-row">'+
+         '<input type="number" class="a_v" data-i="'+i+'" data-j="'+j+'" step="0.05" value="'+a.v+'">'+
+         '<input type="text" class="a_t" data-i="'+i+'" data-j="'+j+'" value="'+esc(a.t)+'">'+
+         '<button class="del" data-adel="'+i+','+j+'" title="删除这一档">×</button></div>';
+    });
+    h+='<button class="btn sm" data-aadd="'+i+'" style="margin-top:6px">+ 加一档</button>'+
+       '<p class="hint-line">这些说明只作提示、不参与计算，但会显示在页③ 的滑块下方，点一下即可按该档打分。</p>'+
+       '</div></details>';
+    h+='</div>';
+  });
+  h+='<button class="btn" id="btnAddDim" style="margin-top:8px">+ 新增维度</button>'+
+     '<p class="hint-line">维度数量可自行增删：加一个上来先改名字、写参考标准，再去页③ 打分。'+
+     '新增的维度会自动补进标定样本列和档位表（按量程 20%/35%/65%/90% 的位置取值，可再改）。</p>';
+  $('dimGrid').innerHTML=h;
+  renderDimWarn();
+}
+function onDimGridInput(e){
+  var el=e.target, cls=el.className, i=+el.getAttribute('data-i');
+  if(isNaN(i)||!S.dims[i]) return;
+  var d=S.dims[i];
+  if(cls.indexOf('d_name')>=0){ d.name=el.value; }
+  else if(cls.indexOf('d_w')>=0){ d.w=clamp(parseFloat(el.value)||0,0,3); kDirty('权重 w'); }
+  else if(cls.indexOf('d_min')>=0||cls.indexOf('d_max')>=0){
+    var vmin=parseFloat(document.querySelector('.d_min[data-i="'+i+'"]').value);
+    var vmax=parseFloat(document.querySelector('.d_max[data-i="'+i+'"]').value);
+    if(isNaN(vmin)||isNaN(vmax)) return;
+    if(vmax<=vmin) vmax=vmin+0.01;
+    d.min=vmin; d.max=vmax; d.val=clamp(d.val,d.min,d.max);
+    kDirty('量程');
+  }
+  else if(cls.indexOf('d_valnum')>=0){
+    d.val=clamp(parseFloat(el.value)||0,d.min,d.max);
+    var sv=document.querySelector('.d_val[data-i="'+i+'"]'); if(sv) sv.value=d.val;
+    syncScoreRow(i);
+  }
+  else if(cls.indexOf('d_val')>=0){
+    d.val=parseFloat(el.value)||0;
+    var sn=document.querySelector('.d_valnum[data-i="'+i+'"]'); if(sn) sn.value=d.val;
+    syncScoreRow(i);
+  }
+  else if(cls.indexOf('a_v')>=0||cls.indexOf('a_t')>=0){
+    var j=+el.getAttribute('data-j');
+    if(!d.anchors[j]) return;
+    if(cls.indexOf('a_v')>=0){ var av=parseFloat(el.value); if(!isNaN(av)) d.anchors[j].v=av; }
+    else d.anchors[j].t=el.value;
+  }
+  else return;
+  save(); refreshAll();
+}
+function onDimGridChange(e){
+  var el=e.target, cls=el.className||'';
+  if(cls.indexOf('d_')!==0&&cls.indexOf('a_')!==0) return;
+  onDimGridInput(e);          /* 先把输入值同步进 state，避免只来 change 事件时丢改动 */
+  var i=+el.getAttribute('data-i');
+  if(!isNaN(i)&&S.dims[i]&&cls.indexOf('a_')===0)
+    S.dims[i].anchors.sort(function(a,b){ return a.v-b.v; });   /* 参考标准始终从低到高 */
+  renderDims();
+  renderScores();
+  save(); refreshAll();
+}
+/* 把页① 的「当前分」同步到页③ 的滑块（不重建 DOM，避免拖动被打断） */
+function syncScoreRow(i){
+  var d=S.dims[i];
+  var sl=document.querySelector('#scorePanel .s_val[data-i="'+i+'"]');
+  var sn=document.querySelector('#scorePanel .s_num[data-i="'+i+'"]');
+  if(sl) sl.value=d.val;
+  if(sn) sn.value=d.val;
+}
+/* 新增 / 删除维度：连带维护标定样本列与档位表 */
+function addDim(){
+  var used={}; S.dims.forEach(function(d){ used[d.id]=1; });
+  var n=1; while(used['d'+n]) n++;
+  var id='d'+n;
+  var nd={id:id,name:'新维度 '+n,w:1,nw:1,min:0,max:3,val:1,
+    anchors:[{v:0,t:'底线（归零）'},{v:1,t:'一般'},{v:2,t:'不错'},{v:3,t:'顶尖'}]};
+  S.dims.push(nd);
+  S.tiers.forEach(function(t){
+    var p=(t.p===undefined?0.35:t.p);
+    t.v[id]=Number((nd.min+(nd.max-nd.min)*p).toFixed(3));
+  });
+  S.samples.forEach(function(sm){ sm.s[id]=nd.val; });
+  S.budget.forEach(function(b){ b.s[id]=nd.val; });
+  save(); boot();
+  toast('已新增维度「'+nd.name+'」：请在页① 改名字、写参考标准','ok');
+}
+function removeDim(i){
+  if(!S.dims[i]) return;
+  if(S.dims.length<=1){ toast('至少要保留一个维度','warn'); return; }
+  var d=S.dims[i];
+  confirm2('删除维度「'+esc(d.name)+'」？标定样本里这一列、档位表里的取值都会一起删掉。',function(){
+    S.dims.splice(i,1);
+    S.tiers.forEach(function(t){ delete t.v[d.id]; });
+    S.samples.forEach(function(sm){ delete sm.s[d.id]; });
+    S.budget.forEach(function(b){ delete b.s[d.id]; });
+    save(); boot();
+    kDirty('删除维度');
+    toast('已删除维度「'+esc(d.name)+'」','ok');
+  });
+}
+function bindDimGrid(){
+  if(BOUND.dimGrid) return;
+  BOUND.dimGrid=1;
+  var g=$('dimGrid');
+  g.addEventListener('input',onDimGridInput);
+  g.addEventListener('change',onDimGridChange);
+  g.addEventListener('click',function(e){
+    var t=e.target;
+    if(t.id==='btnAddDim'){ addDim(); return; }
+    var dd=t.getAttribute&&t.getAttribute('data-dimdel');
+    if(dd!==null&&dd!==undefined){ removeDim(+dd); return; }
+    var add=t.getAttribute&&t.getAttribute('data-aadd');
+    if(add!==null&&add!==undefined){
+      var i=+add, d=S.dims[i];
+      var last=d.anchors[d.anchors.length-1];
+      d.anchors.push({v:last?last.v:d.max, t:'新的一档（点这里改说明）'});
+      d.anchors.sort(function(a,b){ return a.v-b.v; });
+      refOpen[i]=true; save(); renderDims(); renderScores(); refreshAll();
+      return;
+    }
+    var del=t.getAttribute&&t.getAttribute('data-adel');
+    if(del){
+      var p=del.split(','), i2=+p[0], j2=+p[1];
+      S.dims[i2].anchors.splice(j2,1);
+      refOpen[i2]=true; save(); renderDims(); renderScores(); refreshAll();
+      return;
+    }
+  });
+  g.addEventListener('toggle',function(e){
+    var el=e.target;
+    if(el.tagName==='DETAILS'&&el.getAttribute('data-ref')!==null)
+      refOpen[+el.getAttribute('data-ref')]=el.open;
+  },true);
+}
+function renderDimWarn(){
+  var neg=S.dims.filter(function(d){ return d.min<0; });
+  var zeroMis=S.dims.filter(function(d){ return d.min<0; });
+  var h='';
+  if(neg.length){
+    h+='<div class="warnbox"><b>⚠ 有 '+neg.length+' 个维度允许负值</b>：'+
+      neg.map(function(d){ return d.name+' ['+d.min+','+d.max+']'; }).join('、')+
+      '。<br>· 这些维度允许打负分：<b>0 仍然是底线</b>（毫无正面价值），负分 = 反感，不是「中点」。'+
+      '<br>· 负分会触发「负值处理」里的隐藏关（倒贴模式）：负值权重 nw、A / C、是否过压缩都在那里调。'+
+      '<br>· 含负量程的维度上「0 即归零」仍然成立，但负值部分不再受短板上限约束。</div>';
+  }
+  var narrow=S.dims.filter(function(d){ return (d.max-d.min)<0.5; });
+  if(narrow.length)
+    h+='<div class="tip">量程过窄的维度：'+narrow.map(function(d){ return d.name; }).join('、')+
+      '。量程越窄，该维对总分的影响越小（连乘下取值范围宽度就是隐式权重）。若不是本意，把量程拉宽或提高权重 w。</div>';
+  if(!h) h='<div class="okbox">✓ 所有维度的量程都以 0 为底线且宽度正常，零点对齐，「短板决定上限」成立。</div>';
+  $('dimWarn').innerHTML=h;
+}
+
+/* ==================== ① 压缩层 ==================== */
+function renderComp(){
+  var P=S.P, h='';
+  h+=prow('启用压缩','',
+    '<label class="chk"><input type="checkbox" id="p_om" '+(P.om?'checked':'')+'> S = f(S_raw)</label>',
+    '关闭时 S = S_raw：<b>低档不压、高档不削</b>，金额会明显拉开。');
+  h+=prow('低/中断点','a','<input type="number" id="p_a" step="0.1" value="'+P.a+'">',
+    '低于这个值的算「低档」。<b>默认 1</b>，因为 1 是「六个维度都恰好合格」的位置，是自然的分界。'+
+    '调低 = 更早进入压缩；调高 = 给「一般水平」更多空间。');
+  h+=prow('低段指数','α_L','<input type="number" id="p_aL" step="0.05" value="'+P.aL+'">',
+    '低档要多狠地压。<b>必须 ≥ 1</b>：只有 α_L ≥ 1 才恒有 <code>f(x) ≤ x</code>，即永远不会抬高低档 —— 这正是它和开平方的本质区别。'+
+    '1.25 保守（低档只降约两成），1.5 激进，1.0 = 低档不压缩。');
+  h+=prow('中段指数','α_M','<input type="number" id="p_aM" step="0.05" value="'+P.aM+'">',
+    '「正常水平」那一段（S_raw 落在 a 与 b 之间）的压缩指数。<b>默认 1 = 中段不压缩。</b>'+
+    '<br>· 调到 <b>&lt; 1</b>：中段也被压低（连"还不错的游戏"一起省）。0.85 大约让中段降 10~15%。<br>'+
+    '· 调到 <b>&gt; 1</b>：中段被放大成凸起，等于给「正常水平」额外加成 —— 只在需要鼓励中档游戏时才用。<br>'+
+    '三种段共用两个断点，常数按端点相等自动重算（改了 αM，c_M 和 c_H 会跟着变）。');
+  h+=prow('中/高断点','b','<input type="number" id="p_b" step="0.5" value="'+P.b+'">',
+    '高于这个值的算「高档」。<b>默认 6</b>：各维度全取「一般」是 1，全取「不错」大约就是 6，所以 6 以上才叫「真的好」。'+
+    '锚点游戏 S_raw ≈ 2.83，落在中档，因此一分没被压 —— 这是故意设计的，好让 k 重标后钱数原样保住。');
+  h+=prow('高段指数','α_H','<input type="number" id="p_aH" step="0.05" value="'+P.aH+'">',
+    '高档要多狠地削峰，应 <b>&lt; 1</b>。0.35 时「本命神作」从 213 元降到 56 元；0.25 更收敛（约 45 元）；1.0 = 高档不压缩。'+
+    '不需要为「全 3 的神迹」调参。');
+  $('compRows').innerHTML=h;
+  ['p_a','p_aL','p_aM','p_b','p_aH'].forEach(function(id){
+    $(id).addEventListener('input',function(){ syncComp(); });
+  });
+  $('p_om').addEventListener('change',function(){ S.P.om=$('p_om').checked; syncComp(); });
+  paintSegFormula();
+}
+function syncComp(){
+  S.P.a=parseFloat($('p_a').value); if(isNaN(S.P.a)) S.P.a=1;
+  S.P.aL=parseFloat($('p_aL').value); if(isNaN(S.P.aL)) S.P.aL=1;
+  S.P.aM=parseFloat($('p_aM').value); if(isNaN(S.P.aM)) S.P.aM=1;
+  S.P.b=parseFloat($('p_b').value); if(isNaN(S.P.b)) S.P.b=6;
+  S.P.aH=parseFloat($('p_aH').value); if(isNaN(S.P.aH)) S.P.aH=0.35;
+  kDirty('压缩参数');
+  save(); paintSegFormula(); refreshAll();
+}
+function paintSegFormula(){
+  var P=S.P, a=Math.max(P.a,0), b=Math.max(P.b,a+1e-6), aM=P.aM;
+  var cl=cLow(a,P.aL), cm=cMid(a,aM), ch=cHigh(a,aM,b,P.aH);
+  if(!P.om){
+    $('segFormula').textContent='压缩已关闭：  S = S_raw';
+    $('contWarn').innerHTML='<div class="tip">压缩已关闭：<code>S = S_raw</code>，低档不压、高档不削。</div>';
+    return;
+  }
+  $('segFormula').textContent=
+    'S = '+cl.toFixed(4)+' · S_raw^'+P.aL+'          当 |S_raw| ≤ '+P.a+'\n'+
+    'S = '+cm.toFixed(4)+' · S_raw^'+P.aM+'          当 '+P.a+' < |S_raw| ≤ '+P.b+'\n'+
+    'S = '+ch.toFixed(4)+' · S_raw^'+P.aH+'          当 |S_raw| > '+P.b+'\n'+
+    '\n连续性常数（端点相等自动解出）：\n'+
+    '  c_L = a^(1−αL) = '+cl.toFixed(4)+'\n'+
+    '  c_M = a^(1−αM) = '+cm.toFixed(4)+'      （αM = 1 时恒为 1，中段即 S = S_raw）\n'+
+    '  c_H = c_M · b^(αM−αH) = '+ch.toFixed(4);
+  var L=[];
+  if(P.aL<1) L.push('α_L = '+P.aL+' &lt; 1：低档会被<b>抬高</b>（填谷），与想要的效果相反。');
+  if(aM>1) L.push('α_M = '+aM+' &gt; 1：<b>中档会被放大</b>（曲线凸起于灰线之上）。这不是「只削峰」，只在需要给「正常水平的游戏」额外加成时才这么设。');
+  if(aM<=0) L.push('α_M = '+aM+' ≤ 0：中档会变成<b>非单调</b>（分数越高、S 越低），请不要这样设。');
+  if(P.aH>1) L.push('α_H = '+P.aH+' &gt; 1：高档会被<b>放大</b>，连乘爆炸会更严重。');
+  if(P.b<=P.a) L.push('断点顺序异常（b ≤ a），中档区间为空，已按 b = a 处理。');
+  if(P.a<=0) L.push('a ≤ 0：低档区间为空，低档压缩不生效（中段从 0 起算）。');
+  var errA=Math.abs(cl*Math.pow(a,P.aL)-cm*Math.pow(a,aM));
+  var errB=Math.abs(cm*Math.pow(b,aM)-ch*Math.pow(b,P.aH));
+  if(errA>1e-6||errB>1e-6) L.push('端点连续性误差偏大，请检查参数。');
+  $('contWarn').innerHTML=L.length
+    ? '<div class="warnbox">⚠ '+L.join('<br>⚠ ')+'</div>'
+    : '<div class="okbox">✓ 两个断点都连续：'+
+      'a='+P.a+' 处 f_L=f_M='+ (cm*Math.pow(a,aM)).toFixed(4)+
+      '（误差 '+errA.toExponential(1)+'）；b='+P.b+' 处 f_M=f_H='+(ch*Math.pow(b,P.aH)).toFixed(4)+
+      '（误差 '+errB.toExponential(1)+'）。</div>';
+}
+
+/* ==================== ① 负值处理 ==================== */
+function renderNeg(){
+  var P=S.P;
+  var r=rawProduct(valsOf(),S.dims);
+  var A=Math.max(P.negA,1.000001), C=P.negC, kz=C*Math.pow(A,r.W);
+  var h='';
+  h+=prow('隐藏关 · 倒贴模式','',
+    '<span class="num">已解锁</span>',
+    '某个维度被打成负数的那一刻，这游戏就掉进隐藏关：<b>它得倒贴钱请你玩</b>。'+
+    '计算式：<code>S_raw = −C · A^(W₋ − Σxᵢnwᵢ)</code>，其中 <code>W₋ = Σnwᵢ</code> 是下面的负值权重之和。'+
+    'C 的设定很贴心 —— 各维都按负权重恰好拿 1 分时，倒贴幅度不多不少正好是 C。');
+  h+=prow('否决底数','A',
+    '<input type="number" id="p_negA" step="1" min="1.01" value="'+P.negA+'">',
+    '记仇的倍率：差评每多 1 分，倒贴金额就翻 A 倍。A 越大，这款游戏在「差评地狱」里陷得越快；'+
+    'A 越接近 1，则属于「记仇但不记死账」的温和流派。');
+  h+=prow('否决系数','C',
+    '<input type="number" id="p_negC" step="0.1" value="'+P.negC+'">',
+    '总闸：各维都按负权重恰好拿 1 分时，倒贴幅度不多不少正好是 C。'+
+    'C 调大 → 差评的代价更狠；C 调小 → 口下留情。<br>'+
+    '当前 A='+num(A,2)+'、W₋=Σnwᵢ='+num(r.Wn,2)+'。');
+  h+=prow('负值压缩','',
+    '<label class="chk"><input type="checkbox" id="p_negComp" '+(P.negComp?'checked':'')+'> 负值也过压缩层</label>',
+    '默认不削 —— 倒贴的价格不打折，负多少算多少。'+
+    '想给差评游戏留点面子就打开：负值幅度会和好评一样被三段压缩收窄。');
+  h+=prow('负值权重（各维独立）','nw',
+    '<div class="exdims" style="margin:2px 0">'+
+    S.dims.map(function(d,i){
+      return '<label><span class="dn" title="'+esc(d.name)+'">'+esc(d.name)+'</span>'+
+        '<input type="number" class="negw" data-i="'+i+'" step="0.1" min="0" max="3" value="'+
+        (d.nw===undefined?d.w:d.nw)+'" style="width:74px"></label>';
+    }).join('')+'</div>'+
+    '<button class="btn sm" id="btnNwSync">全部与正值权重一致</button>',
+    '只记差评、不记好评的小本本：只作用于负值公式，与「维度与参考标准」里的正值权重互不串门。'+
+    '把某维的 nw 设为 0 = 这一维的差评不算数。');
+  $('negRows').innerHTML=h;
+  $('p_negA').addEventListener('input',function(){
+    S.P.negA=Math.max(1.000001,parseFloat($('p_negA').value)||10); save(); refreshAll(); });
+  $('p_negC').addEventListener('input',function(){
+    S.P.negC=parseFloat($('p_negC').value); if(isNaN(S.P.negC)) S.P.negC=1; save(); refreshAll(); });
+  $('p_negComp').addEventListener('change',function(){
+    S.P.negComp=$('p_negComp').checked; save(); refreshAll(); });
+  $('btnNwSync').addEventListener('click',function(){
+    S.dims.forEach(function(d){ d.nw=d.w; });
+    save(); renderNeg(); renderNegBox(); refreshAll();
+    toast('负值权重已全部同步为正值权重','ok');
+  });
+  if(!BOUND.negW){
+    BOUND.negW=1;
+    $('negRows').addEventListener('input',function(e){
+      var el=e.target;
+      if((el.className||'').indexOf('negw')<0) return;
+      var i=+el.getAttribute('data-i'); if(!S.dims[i]) return;
+      S.dims[i].nw=clamp(parseFloat(el.value)||0,0,3);
+      save(); renderNegBox(); refreshAll();
+    });
+  }
+}
+function renderNegBox(){
+  var P=S.P, base=valsOf();
+  var demoDim=dimById('f')||S.dims[0];
+  var A=Math.max(P.negA,1.000001);
+  var r0=rawProduct(base,S.dims);
+  var cases=[
+    {n:'单维 −0.1（轻微负分）', s:Object.assign({},base)},
+    {n:'单维 −1（明显负分）',   s:Object.assign({},base)},
+    {n:'单维 −3（严重负分）',   s:Object.assign({},base)},
+    {n:'两维同时为负',          s:Object.assign({},base)}
+  ];
+  cases[0].s[demoDim.id]=-0.1;
+  cases[1].s[demoDim.id]=-1;
+  cases[2].s[demoDim.id]=-3;
+  var other=S.dims.filter(function(d){ return d.id!==demoDim.id&&d.w>0; }).pop();
+  if(other){ cases[3].s[demoDim.id]=-1; cases[3].s[other.id]=-1; }
+  if(!other) cases=cases.slice(0,3);
+  var T=TUsed();
+  var modes=[['倒贴模式<br><span style="font-weight:400;color:var(--tx3)">−C·A^(W₋−Σ)</span>']];
+  var h='<div class="kv" style="margin-top:18px">'+
+    '<div class="k">负值权重和 W₋ = Σnwᵢ</div><div class="v">'+num(r0.Wn,3)+
+      '　<em>当前值口径 Σxᵢnwᵢ = '+num(r0.Bn,3)+'</em></div>'+
+    '<div class="k">否决底数 A / 系数 C</div><div class="v">'+num(A,3)+' / '+num(P.negC,3)+
+      '　<em>等效直式系数 C·A^W₋ = '+(P.negC*Math.pow(A,r0.Wn)).toExponential(3)+
+      '（即 −C·A^(W₋−Σ) ≡ −(C·A^W₋)·A^(−Σ)）</em></div>'+
+    '</div>';
+  h+='<div class="tbl-wrap" style="margin-top:16px"><table><thead><tr>'+
+     '<th>情形（把「'+esc(demoDim.name)+'」改成负值）</th><th class="num">Σxᵢnwᵢ</th>';
+  modes.forEach(function(m){ h+='<th class="num">'+m[1]+'<br><span style="font-weight:400;color:var(--tx3)">S_raw / 月氪金</span></th>'; });
+  h+='</tr></thead><tbody>';
+  cases.forEach(function(c){
+    var rr0=SOf(c.s,S.dims,P);
+    h+='<tr><td>'+c.n+'</td><td class="num">'+num(rr0.B,3)+'</td>';
+    var r=SOf(c.s,S.dims,P), V=P.k*r.s*T;
+    h+='<td class="num">'+num(r.sraw,4)+'<br><span style="color:var(--tx3)">'+num(V,2)+' 元</span></td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<div class="tip"><b>怎么读。</b>沾了负分，价值就跳水式下跌，负得越深越不值钱；'+
+     '具体幅度由 A、C 与各维 nw 决定，调上面几个参数，看这张表最直观。</div>';
+  $('negBox').innerHTML=h;
+}
+
+/* ==================== ① 输出层 ==================== */
+function renderOut(){
+  var P=S.P, h='';
+  h+=prow('参考区间宽度','±','<input type="number" id="p_band" step="5" value="'+P.band+'"><span class="unit">%</span>',
+    '公式给的是一个点，但体验是模糊的。设 30 就会额外显示「理性投放 0.7V ~ 警戒 1.3V」，可以把它当区间用。');
+  h+=prow('对照 · 不压缩','',
+    '<label class="chk"><input type="checkbox" id="p_showNoComp" '+(P.showNoComp?'checked':'')+'> 显示</label>',
+    '同屏显示「完全不用压缩」的结果，随时可见压缩层吃掉了多少。');
+  h+=prow('对照 · 开平方','',
+    '<label class="chk"><input type="checkbox" id="p_showSqrt" '+(P.showSqrt?'checked':'')+'> 显示</label>',
+    '同屏显示 <code>S = √S_raw</code> 的结果，作对照。');
+  $('outRows').innerHTML=h;
+  ['p_band','p_showNoComp','p_showSqrt'].forEach(function(id){
+    $(id).addEventListener('input',function(){
+      S.P.band=parseFloat($('p_band').value)||0;
+      S.P.showNoComp=$('p_showNoComp').checked;
+      S.P.showSqrt=$('p_showSqrt').checked;
+      save(); refreshAll();
+    });
+  });
+}
+
+/* ==================== ① 概览 ==================== */
+function renderPipe(){
+  var P=S.P, T=TUsed(), cT=calcOf();
+  var on=S.dims.filter(function(d){ return d.w>0; });
+  var wM=on.map(function(d){ return esc(d.name)+'<sup>'+d.w+'</sup>'; }).join(' · ');
+  var wP=on.map(function(d){ return esc(d.name)+'^'+d.w; }).join(' · ');
+  var W=0; on.forEach(function(d){ W+=d.w; });
+  $('pipe').innerHTML=kvHTML([
+    {k:'维度',v:S.dims.length+' 个（'+on.length+' 个参与计算，有效权重和 W = '+num(W,3)+'）'},
+    {k:'合成',v:'<span class="mono">S_raw = '+(wP||'（无参与维度）')+'</span>'},
+    {k:'压缩',v:(P.om?'三段幂函数（a='+P.a+'，α_L='+P.aL+'，α_M='+P.aM+'，b='+P.b+'，α_H='+P.aH+'）':'<b>已关闭</b>，S = S_raw')},
+    {k:'隐藏关',v:'倒贴模式 <span class="mono">−C·A^(W₋−Σxᵢnwᵢ)</span>（A='+P.negA+'，C='+P.negC+
+      '，负值'+(P.negComp?'过压缩':'不压缩')+'，nw 在「负值处理」调）'},
+    {k:'有效时长',v:'<span class="mono">T_eff = '+cT.Ta+' + '+P.eta+'×'+cT.Tp+' = '+T.toFixed(2)+' h</span>'+(P.Tmax>0?'（已过饱和上限）':'')},
+    {k:'参考氪金',v:'<span class="mono">V = '+P.k+' × S × '+T.toFixed(2)+'</span>　'+
+      (P.B>0?('· 且不超过预算上限 '+P.B+' 元'):'· 预算上限未设')}
+  ]);
+}
+
+/* ==================== ③ 打分面板 ==================== */
+function renderScores(){
+  var h='';
+  S.dims.forEach(function(d,i){
+    var lo=Math.min(d.min,0), hi=Math.max(d.max,d.min+0.01);
+    h+='<div class="dimrow">'+
+      '<div class="hd"><span class="nm">'+esc(d.name)+'</span>'+
+      '<span class="rg">量程 ['+d.min+', '+d.max+']　权重 '+d.w+
+        (d.w===0?'　<b style="color:var(--warn)">不参与</b>':'')+'</span></div>'+
+      '<div class="nrow">'+
+        '<input type="range" class="s_val" data-i="'+i+'" min="'+lo+'" max="'+hi+'" step="0.01" value="'+d.val+'">'+
+        '<input type="number" class="s_num" data-i="'+i+'" step="0.01" value="'+d.val+'" style="width:96px">'+
+      '</div>';
+    if(d.anchors.length){
+      h+='<div class="chips">'+d.anchors.map(function(a,j){
+        var on=(Math.abs(a.v-d.val)<0.005)?' on':'';
+        return '<span class="chip'+on+'" data-chip="'+i+':'+j+'" title="点一下按这档打分">'+
+               '<b>'+a.v+'</b>'+esc(a.t)+'</span>';
+      }).join('')+'</div>';
+    }
+    h+='</div>';
+  });
+  $('scorePanel').innerHTML=h;
+}
+function bindScorePanel(){
+  if(BOUND.scorePanel) return;
+  BOUND.scorePanel=1;
+  var p=$('scorePanel');
+  p.addEventListener('input',function(e){
+    var el=e.target, i=+el.getAttribute('data-i');
+    if(isNaN(i)||!S.dims[i]) return;
+    var cls=el.className||'';
+    if(cls.indexOf('s_val')<0&&cls.indexOf('s_num')<0) return;
+    var d=S.dims[i], v=parseFloat(el.value);
+    if(isNaN(v)) return;
+    d.val=v;
+    var row=el.closest('.dimrow');
+    if(cls.indexOf('s_num')>=0){ var sv=row.querySelector('.s_val'); if(sv) sv.value=v; }
+    else { var sn=row.querySelector('.s_num'); if(sn) sn.value=v; }
+    save(); refreshAll();
+  });
+  p.addEventListener('change',function(e){
+    var el=e.target, i=+el.getAttribute('data-i');
+    if(isNaN(i)||!S.dims[i]) return;
+    var cls=el.className||'';
+    if(cls.indexOf('s_val')<0&&cls.indexOf('s_num')<0) return;
+    var d=S.dims[i];
+    d.val=clamp(parseFloat(el.value)||0,d.min,d.max);
+    save(); renderScores(); refreshAll();
+  });
+  p.addEventListener('click',function(e){
+    var c=e.target.getAttribute&&e.target.getAttribute('data-chip');
+    if(!c) return;
+    var q=c.split(':'), i=+q[0], j=+q[1];
+    if(!S.dims[i]||!S.dims[i].anchors[j]) return;
+    S.dims[i].val=clamp(S.dims[i].anchors[j].v,S.dims[i].min,S.dims[i].max);
+    save(); renderScores(); refreshAll();
+  });
+}
+
+/* ==================== ③ 实时验算 ==================== */
+function renderCalc(){
+  var P=S.P, vals=valsOf();
+  var r=SOf(vals,S.dims,P), T=TUsed();
+  var z=P.k*r.s, V=z*T;
+  var Vc=(P.B>0)?Math.min(V,P.B):V;
+
+  var isNeg=(r.s<0);
+  var vBig=$('vBig'); if(vBig) vBig.className='big'+(isNeg?' neg':'');
+  $('vLabel').textContent=(S.mode==='month')?'本月参考氪金 V':'可接受总价 V（买断 / 终身）';
+  set('V',num(V,2)); set('sRaw',num(r.sraw,4)); set('sCmp',num(r.s,4)); set('z',num(z,4));
+
+  var tags='';
+  if(P.om) tags+='<span class="tag '+(r.seg==='高档'?'hot':(r.seg==='低档'?'cool':''))+'">'+r.seg+
+        (r.seg==='低档'?' · 指数 α_L='+P.aL:(r.seg==='高档'?' · 削峰 α_H='+P.aH:''))+'</span>';
+  if(P.B>0) tags+='<span class="tag '+(V>P.B?'hot':'cool')+'">'+
+    (V>P.B?('已触预算上限，实限 '+num(P.B,2)+' 元'):'在预算内')+'</span>';
+  tags+='<span class="tag blue">'+(S.mode==='total'?'总 · 买断':'月 · 长线')+'　T_eff = '+num(T,2)+' h</span>';
+  tags+='<span class="tag">参考区间 '+num(V*(1-P.band/100),2)+' ~ '+num(V*(1+P.band/100),2)+' 元</span>';
+  if(r.negs>0) tags+='<span class="tag hot">⚠ 触发隐藏关：'+r.negs+' 个负分（倒贴模式）</span>';
+  if(r.zero) tags+='<span class="tag hot">有维度为 0：一票归零</span>';
+  if(K_DIRTY) tags+='<span class="tag hot" title="参数改动后未重新标定，k 可能已失真">k 未重标</span>';
+  $('segTags').innerHTML=tags;
+
+  /* 负值结果用 warn 色（hlw），正值保持 accent 绿（hl） */
+  var hlv=function(x,txt){ return '<b class="'+(x<0?'hlw':'hl')+'">'+txt+'</b>'; };
+  $('liveFormula').innerHTML=kvHTML([
+    {k:'Σxᵢwᵢ（加权和）',v:num(r.B,4)+(r.negs>0?'　<em>负值规则用得上</em>':'')},
+    {k:'S_raw',v:hlv(r.sraw,num(r.sraw,4))+'　<em>'+(r.mode==='正'?'加权连乘':'规则：'+r.mode)+(r.sraw<0?'，符号为负':'')+'</em>'},
+    {k:'S（压缩后）',v:hlv(r.s,num(r.s,4))+'　<em>'+r.seg+'</em>'},
+    {k:'z（心理时价）',v:hlv(z,num(z,4)+' 元/h')+'　<em>= '+P.k+' × '+num(r.s,4)+'</em>'},
+    {k:'V（'+(S.mode==='total'?'总氪金':'月氪金')+'）',v:hlv(V,num(V,2)+' 元')+'　<em>= '+num(z,4)+' × '+num(T,2)+' h</em>'+
+      (P.B>0?'　·　预算上限 '+num(P.B,2)+' → '+num(Vc,2)+' 元':'')}
+  ]);
+
+  var parts=r.parts.map(function(p){ return '  '+p.k+' = '+p.v; }).join('\n');
+  var det=$('calcDetail');
+  if(!det){
+    var d2=document.createElement('details');
+    d2.className='ref'; d2.id='calcDetail';
+    d2.innerHTML='<summary>逐步展开：每一项的贡献</summary><div class="formula" id="calcParts"></div>';
+    $('liveFormula').parentNode.appendChild(d2);
+  }
+  $('calcParts').textContent=
+    'S_raw = '+S.dims.filter(function(d){ return d.w>0; })
+      .map(function(d){ return d.name; }).join(' × ')+'\n'+parts+
+    '\n\nΣxᵢwᵢ = '+num(r.B,4)+'　（负分 '+r.negs+' 个，零分 '+(r.zero?'有':'无')+'）';
+
+  /* 买断与月氪金绝不混用：对照盒只给当前口径的数，且用普通字重 */
+  var rows=[];
+  if(isNeg){
+    rows.push({k:'当前结果（'+(S.mode==='total'?'总氪金':'月氪金')+'）',v:num(V,2)+' 元'});
+    rows.push({k:'怎么读',v:'按这套定价，得倒贴约 '+num(-V,2)+' 元'+
+        (S.mode==='month'?'/月':'（一次性）')+'它才肯让你玩 —— 认真就输了，这只是价格参考。'});
+    if(P.negComp&&r.sraw<0){
+      rows.push({k:'负值压缩',v:'幅度 '+num(Math.abs(r.sraw),4)+' → '+
+          num(Math.abs(r.s),4)+'（收窄 '+num((1-Math.abs(r.s)/Math.abs(r.sraw))*100,1)+'%）'});
+    }else{
+      rows.push({k:'负值压缩',v:'未启用，负多少算多少（「① 负值处理」可开启）'});
+    }
+  }else{
+    var noComp=P.k*r.sraw*T;
+    var sqrtV=(r.sraw>0)?P.k*Math.sqrt(r.sraw)*T:NaN;
+    rows.push({k:'当前结果（'+(S.mode==='total'?'总氪金':'月氪金')+'）',v:num(V,2)+' 元'});
+    if(P.showNoComp) rows.push({k:'不压缩',v:num(noComp,2)+' 元'});
+    if(P.showSqrt) rows.push({k:'开平方对照',v:num(sqrtV,2)+' 元'});
+    rows.push({k:'压缩使 S 少了',v:num(r.sraw-r.s,4)+' 分'});
+    rows.push({k:'与不压缩相差',v:(P.showNoComp?num(noComp-V,2)+' 元（'+(noComp>0?num((V/noComp-1)*100,1):'–')+'%）':'未显示')});
+  }
+  $('compareBox').innerHTML='<div class="kv">'+kvHTML(rows)+'</div>';
+
+  var w='';
+  var negOn=S.dims.filter(function(d){ return d.w>0&&d.val<0; });
+  if(negOn.length){
+    w+='<div class="warnbox"><b>⚠ 隐藏关已触发：'+negOn.length+' 个维度为负</b>（'+
+       negOn.map(function(d){ return d.name+' = '+d.val; }).join('、')+
+       '）。倒贴模式下 S_raw = '+num(r.sraw,4)+
+       (r.sraw<0?' —— 这游戏得<b>倒贴钱请你玩</b>，V 为负。':'。')+'</div>';
+  }
+  if(r.zero) w+='<div class="warnbox">有维度取了 0，连乘直接归零 —— 这是「一票否决」在生效，不是算错了。</div>';
+  var shorts=S.dims.filter(function(d){ return d.w>0; }).slice().sort(function(a,b){
+    return (a.val-a.min)/((a.max-a.min)||1)-(b.val-b.min)/((b.max-b.min)||1); })[0];
+  if(shorts&&!r.zero&&r.s>0){
+    var sd=(shorts.val-shorts.min)/((shorts.max-shorts.min)||1);
+    if(sd<0.45) w+='<div class="tip">连乘结构下<b>最短板决定上限</b>。当前最短板是 <b>'+esc(shorts.name)+
+      '</b>（量程内位置仅 '+(sd*100).toFixed(0)+'%）。想提高它的参考氪金，优先修这条，而不是堆已经很高分的维度。</div>';
+  }
+  $('liveWarn').innerHTML=w;
+
+  /* 档位对照表：档位名与每维取值都可直接编辑，最后一行是当前评分 */
+  var isMonth=(S.mode!=='total');
+  var moneyLab=isMonth?'月氪金':'总氪金';
+  $('tierMode').innerHTML='当前口径：<b>'+(isMonth?'月 · 长线':'总 · 买断')+'</b>　·　'+
+    (isMonth?'本月有效时长':'预计总时长')+' <b>'+num(TUsed(),2)+' h</b>　·　切换在「② 时间与口径」';
+  var hd='<tr><th style="min-width:120px">档位（可改名、可改分）</th>';
+  S.dims.forEach(function(d){ hd+='<th class="num" style="min-width:86px">'+esc(d.name)+'</th>'; });
+  hd+='<th class="num" style="border-left:1px solid var(--line);min-width:76px">S_raw</th>'+
+      '<th class="num" style="min-width:70px">S</th>'+
+      '<th class="num" style="min-width:92px">'+moneyLab+'</th>'+
+      '<th class="num" style="min-width:86px">不压缩</th>'+
+      '<th class="num" style="min-width:86px">开平方</th>'+
+      '<th class="num" style="min-width:66px">所在段</th></tr>';
+  $('tierHead').innerHTML=hd;
+  var th='';
+  S.tiers.forEach(function(t,ti){
+    var vals=tierVals(t), rr=SOf(vals,S.dims,P);
+    th+='<tr><td><input type="text" class="t_name" data-t="'+ti+'" value="'+esc(t.n)+'"></td>';
+    S.dims.forEach(function(d){
+      th+='<td><input type="number" class="t_val" data-t="'+ti+'" data-d="'+d.id+'" step="0.05" value="'+
+          (+Number(vals[d.id]).toFixed(4))+'"></td>';
+    });
+    th+=tierMoneyCells(rr);
+    th+='<td class="num">'+rr.seg+'</td></tr>';
+  });
+  var rc=SOf(valsOf(),S.dims,P);
+  th+='<tr class="currow"><td><b>当前评分</b></td>';
+  S.dims.forEach(function(d){ th+='<td class="num">'+num(d.val,2)+'</td>'; });
+  th+=tierMoneyCells(rc,true);
+  th+='<td class="num">'+rc.seg+'</td></tr>';
+  $('tierBody').innerHTML=th;
+}
+/* 档位表里 S_raw / S / 参考氪金 / 不压缩 / 开平方 五格 —— 全部按当前口径 */
+function tierMoneyCells(rr,bold){
+  var P=S.P, T=TUsed();
+  var W=function(x){ return bold?('<b>'+x+'</b>'):x; };
+  var noComp=P.k*rr.sraw*T;
+  var sqrtV=(rr.sraw>0)?(P.k*Math.sqrt(rr.sraw)*T):NaN;
+  return '<td class="num" style="border-left:1px solid var(--line)'+(bold?';font-weight:600':'')+'">'+num(rr.sraw,4)+'</td>'+
+    '<td class="num"'+(bold?';font-weight:600':'')+'>'+num(rr.s,4)+'</td>'+
+    '<td class="num">'+W(num(P.k*rr.s*T,2))+'</td>'+
+    '<td class="num">'+num(noComp,2)+'</td>'+
+    '<td class="num">'+num(sqrtV,2)+'</td>';
+}
+
+/* 只更新某一行档位的派生列（打字时不重建 tbody，避免丢焦点） */
+function updateTierRow(ti){
+  var tr=$('tierBody').children[ti]; if(!tr) return;
+  var t=S.tiers[ti]; if(!t) return;
+  var rr=SOf(tierVals(t),S.dims,S.P);
+  var tds=tr.children, off=1+S.dims.length;
+  var tmp=document.createElement('tbody');
+  tmp.innerHTML='<tr>'+tierMoneyCells(rr)+'</tr>';
+  var src=tmp.firstChild.children;
+  for(var k=0;k<src.length;k++) tds[off+k].innerHTML=src[k].innerHTML;
+  if(tds[off+src.length]) tds[off+src.length].textContent=rr.seg;
+}
+function bindTiers(){
+  if(BOUND.tiers) return;
+  BOUND.tiers=1;
+  var b=$('tierBody');
+  b.addEventListener('input',function(e){
+    var el=e.target, ti=+el.getAttribute('data-t');
+    if(isNaN(ti)||!S.tiers[ti]) return;
+    var cls=el.className||'';
+    if(cls.indexOf('t_name')>=0){ S.tiers[ti].n=el.value; save(); return; }
+    if(cls.indexOf('t_val')>=0){
+      var did=el.getAttribute('data-d'), v=parseFloat(el.value);
+      if(isNaN(v)) return;
+      S.tiers[ti].v[did]=v;
+      save(); updateTierRow(ti);
+    }
+  });
+  b.addEventListener('change',function(e){
+    var cls=e.target.className||'';
+    if(cls.indexOf('t_val')<0&&cls.indexOf('t_name')<0) return;
+    renderCalc();
+  });
+}
+
+/* ==================== ② 标定样本表 ==================== */
+function renderSamples(){
+  var dims=S.dims.filter(function(d){ return d.w>0; });
+  var head='<tr><th style="min-width:44px">纳入</th><th style="min-width:150px">游戏名（可改）</th>'+
+    '<th class="num" style="min-width:84px">主动时长 h</th><th class="num" style="min-width:84px">被动时长 h</th>'+
+    '<th class="num" style="min-width:76px">被动折算 η</th>'+
+    '<th class="num" style="min-width:84px">累计实付 元</th>';
+  if(dims.length>1) head+='<th class="num" colspan="'+dims.length+'" style="text-align:center;border-left:1px solid var(--line)">各维度评分（按参考标准打）</th>';
+  else dims.forEach(function(d){ head+='<th class="num" style="min-width:66px">'+esc(d.name)+'</th>'; });
+  head+='<th class="num" style="min-width:76px;border-left:1px solid var(--line)">S</th>'+
+        '<th class="num" style="min-width:86px">单样本 k</th><th class="num" style="min-width:76px">残差 元</th>'+
+        '<th style="min-width:150px;border-left:1px solid var(--line)">备注</th>'+
+        '<th style="min-width:40px"></th></tr>';
+  var r2='<tr><th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th>';
+  dims.forEach(function(d){ r2+='<th class="num" style="position:static;background:var(--card);font-weight:400;color:var(--tx3);min-width:86px">'+
+    esc(d.name)+'</th>'; });
+  r2+='<th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th><th style="position:static;background:var(--card)"></th></tr>';
+  $('sampHead').innerHTML=head+(dims.length>1?r2:'');
+
+  var h='';
+  S.samples.forEach(function(sm,i){
+    h+='<tr class="'+(sm.on?'':'off')+'" data-i="'+i+'">'+
+      '<td><input type="checkbox" class="m_on" data-i="'+i+'" '+(sm.on?'checked':'')+'></td>'+
+      '<td><input type="text" class="m_name" data-i="'+i+'" value="'+esc(sm.name)+'"></td>'+
+      '<td><input type="number" class="m_T" data-i="'+i+'" step="1" value="'+sm.T+'"></td>'+
+      '<td><input type="number" class="m_Tp" data-i="'+i+'" step="1" value="'+(sm.Tp||0)+'"></td>'+
+      '<td><input type="number" class="m_eta" data-i="'+i+'" step="0.1" value="'+(sm.eta===''?'':sm.eta)+'" placeholder="全局" style="width:64px"></td>'+
+      '<td><input type="number" class="m_pay" data-i="'+i+'" step="1" value="'+sm.pay+'"></td>';
+    dims.forEach(function(d){
+      var v=(sm.s[d.id]===undefined?0:sm.s[d.id]);
+      h+='<td><input type="number" class="m_s" data-i="'+i+'" data-d="'+d.id+'" step="0.05" value="'+v+'"></td>';
+    });
+    h+='<td class="num" id="sc_s_'+i+'">–</td>'+
+       '<td class="num" id="sc_k_'+i+'">–</td>'+
+       '<td class="num" id="sc_r_'+i+'">–</td>'+
+       '<td><input type="text" class="m_note" data-i="'+i+'" value="'+esc(sm.note||'')+'" style="width:140px" placeholder="比如：为什么排除"></td>'+
+       '<td><button class="del" data-del="'+i+'" title="删除该行">×</button></td></tr>';
+  });
+  $('sampBody').innerHTML=h;
+  updateK();
+}
+function onSampInput(e){
+  var el=e.target, i=+el.getAttribute('data-i');
+  if(isNaN(i)||!S.samples[i]) return;
+  var sm=S.samples[i], cls=el.className||'';
+  if(cls.indexOf('m_on')>=0){
+    sm.on=el.checked;
+    var tr=el.closest('tr'); if(tr) tr.className=sm.on?'':'off';
+  }
+  else if(cls.indexOf('m_name')>=0) sm.name=el.value;
+  else if(cls.indexOf('m_Tp')>=0) sm.Tp=parseFloat(el.value)||0;
+  else if(cls.indexOf('m_eta')>=0) sm.eta=(el.value===''?'':(parseFloat(el.value)||0));
+  else if(cls.indexOf('m_T')>=0) sm.T=parseFloat(el.value)||0;
+  else if(cls.indexOf('m_pay')>=0) sm.pay=parseFloat(el.value)||0;
+  else if(cls.indexOf('m_note')>=0) sm.note=el.value;
+  else if(cls.indexOf('m_s')>=0) sm.s[el.getAttribute('data-d')]=parseFloat(el.value)||0;
+  else return;
+  sm.updatedAt=new Date().toISOString();
+  save(); updateK();
+}
+function bindSamples(){
+  var b=$('sampBody');
+  b.addEventListener('input',onSampInput);
+  b.addEventListener('click',function(e){
+    var dl=e.target.getAttribute&&e.target.getAttribute('data-del');
+    if(dl===null||dl===undefined) return;
+    S.samples.splice(+dl,1);
+    save(); renderSamples(); refreshAll();
+  });
+}
+function updateK(){
+  syncAcct();                 /* 累计实付/评分变了，额度账户的余额要跟着变 */
+  var res=solveK(S.samples,S.dims,S.P);
+  res.rows.forEach(function(r){
+    set('sc_s_'+r.i,num(r.S,3));
+    set('sc_k_'+r.i,isFinite(r.ki)?num(r.ki,4):'–');
+    set('sc_r_'+r.i,(r.ok&&isFinite(r.res))?num(r.res,2):'–');
+  });
+  set('kLS',isFinite(res.kLS)?num(res.kLS,4):'–');
+  set('kRatio',isFinite(res.kRatio)?num(res.kRatio,4):'–');
+  set('kMed',isFinite(res.kMed)?num(res.kMed,4):'–');
+  set('kCount',res.n);
+
+  var d='';
+  if(K_DIRTY)
+    d='<div class="warnbox">⚠ 参数在上次标定后被改过（权重 / 量程 / 压缩 / 负值规则 / η）。'+
+      '下面的 k 是旧参数下解出的，可能已失真 —— 用同样本重新标定即可解除。</div>';
+  if(res.n===0){
+    d+='<div class="warnbox">没有有效样本。至少勾选 1 行，且该行 S 为正、时长大于 0。</div>';
+  }else{
+    var msg='';
+    if(res.n<3) msg='样本只有 '+res.n+' 个，只能当「重标参考」，不足以拟合。建议攒到 5 个以上。';
+    else if(res.n<5) msg='样本偏少（'+res.n+' 个），趋势可信但别太当真。';
+    else msg='样本量可以（'+res.n+' 个）。';
+    var bad=false;
+    if(isFinite(res.r2)){
+      if(res.r2>=0.8) msg+=' R² = '+num(res.r2,3)+'，模型解释了大部分消费，k 可信。';
+      else if(res.r2>=0.5) msg+=' R² = '+num(res.r2,3)+'，中等。可能漏了维度（当期心情、社交需求、账号保值）。';
+      else { msg+=' R² = '+num(res.r2,3)+' 偏低 —— 同一套维度解释不了消费，别硬信这个 k。'; bad=true; }
+    }
+    if(isFinite(res.cv)){
+      if(res.cv>0.6){ msg+=' 单样本 k 的变异系数 '+num(res.cv,2)+'（高）：同一个 k 套所有游戏这个假设本身有问题。'; bad=true; }
+      else if(res.cv>0.3) msg+=' 变异系数 '+num(res.cv,2)+'（中）。';
+      else msg+=' 变异系数 '+num(res.cv,2)+'（低），k 稳定。';
+    }
+    d+='<div class="'+(bad?'warnbox':'okbox')+'">'+msg+'</div>';
+  }
+  $('kDiag').innerHTML=d;
+
+  var fx=res.rows.filter(function(r){ return r.ok; })
+    .map(function(r){ return r.name.split(' ')[0]+' '+num(r.ki,4); }).join('　');
+  $('kFormula').innerHTML=kvHTML([
+    {k:'Σx（x = 时长×S）',v:num(res.Sx,2)},
+    {k:'Σy（实付）',v:num(res.Sy,2)},
+    {k:'Σx²',v:num(res.Sxx,2)},
+    {k:'Σxy',v:num(res.Sxy,2)},
+    {k:'比值法 k = Σy/Σx',v:num(res.kRatio,4)},
+    {k:'最小二乘 k = Σxy/Σx²',v:'<b class="hl">'+num(res.kLS,4)+'</b>'},
+    {k:'中位数法',v:num(res.kMed,4)},
+    {k:'各样本 k',v:fx||'–'}
+  ]);
+
+  var v0=Number(S.recal.pay||0), t0=Number(S.recal.T||0), s0=Number(S.recal.S||0);
+  var kk=(v0>0&&t0>0&&s0>0)?v0/(t0*s0):NaN;
+  set('rk_out',isFinite(kk)?num(kk,4):'–');
+  return res;
+}
+
+/* ==================== 氪金额度账户 ====================
+   给每款游戏开一个「额度账户」：
+     · 每个月自动往账户里注入该游戏的参考氪金 V（= k × S × 本月有效时长）
+     · 游戏里充的每一笔，从账户里扣掉；余额结转下月
+   余额 = 应付 − 实付；每月 1 号把当月额度 V 增量加到应付上
+   所以「每月更新」是自动的：跨过月初月数 +1，额度自己进来，不需要手动结算。
+   余额为正 = 该花而没花的额度（攒着）；为负 = 已经超支。 */
+var NOW_OVERRIDE=null;                    /* 测试与演示用；真实运行走系统时间 */
+function nowMs(){ return NOW_OVERRIDE!==null?NOW_OVERRIDE:Date.now(); }
+/* 调试入口：__wbNow('2026-09-13') 可把「今天」固定住，看看余额会怎么变；
+   __wbNow() 传空则恢复真实时间。正常使用不会碰到它。 */
+window.__wbState=function(){ return S; };
+/* __wbSeed：把占位示例（或任意环境）灌回来 —— 演示与自动化测试用，正常使用不会碰到 */
+window.__wbSeed=function(env){
+  function deep(x){ return JSON.parse(JSON.stringify(x)); }
+  if(env){
+    if(env.dims) S.dims=deep(env.dims);
+    if(env.P) S.P=deep(env.P);
+    if(env.tiers) S.tiers=deep(env.tiers);
+    if(env.samples) S.samples=deep(env.samples);
+    if(env.budget) S.budget=deep(env.budget);
+    if(env.calc){
+      S.calc={month:Object.assign({Ta:0,Tp:0},S.calc&&S.calc.month||{},env.calc.month||{}),
+              total:Object.assign({Ta:0,Tp:0},S.calc&&S.calc.total||{},env.calc.total||{})};
+    }
+    if(env.mode) S.mode=env.mode;
+    if(env.budgetCap!==undefined) S.budgetCap=env.budgetCap;
+  }else{
+    S.samples=deep(SAMP_SAMPLES);
+    S.budget=deep(SAMP_BUDGET);
+  }
+  save(); boot();
+  return 'seeded';
+};
+window.__wbNow=function(x){
+  NOW_OVERRIDE=(x===undefined||x===null||x==='')?null:((typeof x==='number')?x:parseDay(x));
+  renderAcct(); renderBudget();
+  return NOW_OVERRIDE;
+};
+function parseDay(x){
+  if(!x) return null;
+  var t=String(x), ms=Date.parse(t.length<=10?(t+'T00:00:00'):t);
+  return isNaN(ms)?null:ms;
+}
+function fmtDay(ms){
+  var d=new Date(ms), p=function(n){ return n<10?('0'+n):(''+n); };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+/* 自然月序号：年 × 12 + 月（0 起）—— 用它做「已记账几个月」的计数 */
+function monthIdx(ms){ var d=new Date(ms); return d.getFullYear()*12+d.getMonth(); }
+function parseMonth(x){
+  var m=/^(\d{4})-(\d{1,2})/.exec(String(x||'').trim());
+  return m?((+m[1])*12+((+m[2])-1)):null;
+}
+function monthLabel(mi){
+  var y=Math.floor(mi/12), mm=mi%12+1;
+  return y+'-'+(mm<10?('0'+mm):(''+mm));
+}
+function curMonth(){ return monthIdx(nowMs()); }
+/* ============ 每月自动结算 ============
+   跨过一个月的一号，就把这一个月的额度 V 加进「应付」里，并记下结算到哪个月。
+   因为是**增量**累加（而不是拿当前 V 去乘总月数），所以事后改时长/评分不会倒改历史。 */
+var LAST_TICK=null;
+function tickBudget(quiet){
+  var cur=curMonth(), curLbl=monthLabel(cur), n=0, gained=0;
+  S.budget.forEach(function(b){
+    if(!b.on) return;
+    var t=parseMonth(b.tick);
+    if(t===null){ b.tick=curLbl; return; }
+    if(b.tick===curLbl) return;
+    var steps=cur-t;
+    if(steps>0){
+      var V=budgetV(b).V;
+      b.due=r2(Number(b.due||0)+V*steps);
+      gained+=V*steps; n+=steps;
+      b.tick=curLbl;
+    }
+    /* steps < 0：系统时间被往回拨了。此时**不动** tick ——
+       否则结算点会被拨回去，下次再跨月就重复累加一遍。 */
+  });
+  if(n){ save(); }
+  return {months:n, money:gained, label:curLbl};
+}
+
+/* 单款游戏的「每月额度 V」—— 与是否参与记账无关，都算出来 */
+function budgetV(b){
+  var raw=b.monthT, T=0;
+  if(raw!==undefined&&raw!==null&&raw!==''&&!isNaN(raw)) T=Number(raw);
+  var tp=(b.Tp===undefined||b.Tp===null||b.Tp===''||isNaN(Number(b.Tp)))?0:Number(b.Tp);
+  T=T+etaOf(b)*tp;
+  var r=SOf(b.s||{},S.dims,S.P);
+  return {T:T,S:r.s,V:S.P.k*r.s*T};
+}
+/* 账户快照；未参与记账（on=false）返回 null。
+   应付与实付都是可手填的累计值，每月 1 号由 tickBudget() 增量加进 due。 */
+function acctInfo(b){
+  if(!b.on) return null;
+  var m=budgetV(b);
+  var due=Number(b.due||0), paid=Number(b.paid||0);
+  return {V:m.V,S:m.S,T:m.T,due:due,paid:paid,balance:due-paid,
+          tick:b.tick||monthLabel(curMonth())};
+}
+function acctTotals(){
+  var list=[],V=0,due=0,paid=0,bal=0,off=0;
+  S.budget.forEach(function(b,i){
+    var it=acctInfo(b);
+    if(!it){ off++; return; }
+    list.push({i:i,b:b,info:it});
+    V+=it.V; due+=it.due; paid+=it.paid; bal+=it.balance;
+  });
+  return {list:list,V:V,due:due,paid:paid,balance:bal,n:list.length,off:off,
+          neg:list.filter(function(x){ return x.info.balance<0; }).length};
+}
+/* 记一笔充值：累加到累计实付；alsoMonth 为真时同时算作本月支出 */
+function topUpAcct(i,amt,alsoMonth){
+  var b=S.budget[i]; if(!b) return;
+  amt=Number(amt);
+  if(!(amt>0)){ toast('金额要大于 0','warn'); return; }
+  b.paid=r2(Number(b.paid||0)+amt);
+  if(alsoMonth) b.spent=r2(Number(b.spent||0)+amt);
+  b.updatedAt=new Date().toISOString();
+  save();
+  renderAcct(); renderBudget(); renderSnapshot();
+  toast('已给「'+esc(b.name)+'」记入 '+num(amt,2)+' 元'+(alsoMonth?'（同时计入本期支出）':''),'ok');
+}
+/* 手动补结算一个月（自动结算之外的后备） */
+function tickOne(i){
+  var b=S.budget[i]; if(!b||!b.on) return;
+  var V=budgetV(b).V;
+  b.due=r2(Number(b.due||0)+V);
+  b.updatedAt=new Date().toISOString();
+  save(); renderAcct(); renderSnapshot();
+  toast('「'+esc(b.name)+'」累计参考 +'+num(V,2)+' 元','ok');
+}
+/* 新增一条到预算列表（评分沿用页③ 当前打分，省得再填一遍） */
+function addBudget(name,monthT,vals){
+  var b=normBudget({name:name,monthT:monthT,spent:0,due:0,paid:0,tick:monthLabel(curMonth()),
+    on:true,note:'',updatedAt:new Date().toISOString(),s:vals||valsOf()});
+  b.due=r2(budgetV(b).V);                  /* 当月这一份先给上，之后每月自动加 */
+  S.budget.push(b);
+  save(); renderAcct(); renderBudget(); renderSnapshot();
+}
+function delBudget(i){
+  var b=S.budget[i]; if(!b) return;
+  confirm2('从「预算与数据」里删掉「'+esc(b.name)+'」？<br>只影响这张表，k 标定器那边的样本不动。',function(){
+    S.budget.splice(i,1);
+    save(); renderAcct(); renderBudget(); renderSnapshot();
+    toast('已删除','ok');
+  });
+}
+/* 页③ → 预算列表：同名更新、没有就新建。
+   fields 按口径给：月口径 {monthT:x}，买断口径 {totalT:x} —— 两列互不覆盖。 */
+function upsertBudget(name,vals,fields){
+  fields=fields||{};
+  var idx=-1;
+  for(var i=0;i<S.budget.length;i++)
+    if(normName(S.budget[i].name)===normName(name)){ idx=i; break; }
+  if(idx>=0){
+    var b=S.budget[idx];
+    if(fields.monthT!==undefined){
+      var old=budgetV(b).V;
+      b.monthT=fields.monthT;
+      /* 本月这一份按新额度补齐差额（历史月份不动） */
+      b.due=r2(Number(b.due||0)+(budgetV(b).V-old));
+    }
+    if(fields.totalT!==undefined) b.totalT=fields.totalT;
+    b.s=Object.assign({},b.s,vals);
+    if(!b.tick) b.tick=monthLabel(curMonth());
+    b.updatedAt=new Date().toISOString();
+  }else{
+    var nb=normBudget({name:name,
+      monthT:(fields.monthT!==undefined?fields.monthT:''),
+      totalT:(fields.totalT!==undefined?fields.totalT:''),
+      spent:0,due:0,paid:0,on:true,tick:monthLabel(curMonth()),note:'',s:vals||valsOf()});
+    nb.due=r2(budgetV(nb).V);
+    S.budget.push(nb);
+  }
+  save(); renderAcct(); renderBudget(); renderSnapshot();
+  return idx>=0;
+}
+var EXOPEN={};                    /* 哪些行展开了编辑面板 */
+function renderAcct(){
+  if(!$('acctRows')) return;
+  tickBudget();                    /* 先结算跨过的月份，再画 */
+  var d=new Date(nowMs()), next=new Date(d.getFullYear(),d.getMonth()+1,1);
+  $('acctRows').innerHTML=prow('结算到','',
+    '<span class="num">'+monthLabel(curMonth())+'</span>'+
+    '<span class="unit">下次自动结算 '+fmtDay(next.getTime())+'</span>',
+    '额度按<b>自然月</b>滚动：每跨过一个月的一号，所有参与记账的游戏会自动把当月额度 V 加进「累计参考」，'+
+    '并记下结算到哪个月。所以不需要每月手动结算 —— 需要时可以点表下的「补结算一个月」。','acct-now');
+
+  $('acctHead').innerHTML='<tr>'+
+    '<th style="min-width:34px"></th>'+
+    '<th style="min-width:190px">游戏</th>'+
+    '<th class="num" style="min-width:100px">本月时长 h</th>'+
+    '<th class="num" style="min-width:96px">每月额度 V</th>'+
+    '<th class="num" style="min-width:100px">累计参考</th>'+
+    '<th class="num" style="min-width:100px">累计支出</th>'+
+    '<th class="num" style="min-width:100px">余额</th>'+
+    '<th class="num" style="min-width:94px">结算到</th>'+
+    '<th style="min-width:126px"></th></tr>';
+  $('offHead').innerHTML='<tr>'+
+    '<th style="min-width:34px"></th>'+
+    '<th style="min-width:190px">游戏</th>'+
+    '<th class="num" style="min-width:100px">本月时长 h</th>'+
+    '<th class="num" style="min-width:112px">参与后每月</th>'+
+    '<th style="min-width:126px"></th></tr>';
+
+  var onIdx=[], offIdx=[];
+  S.budget.forEach(function(b,i){ (b.on?onIdx:offIdx).push(i); });
+  var h='';
+  if(!onIdx.length){
+    h='<tr><td colspan="9" style="text-align:center;color:var(--tx3);padding:22px">'+
+      (S.budget.length?'没有游戏在参与记账 —— 到下面「未参与记账」里点它一下。'
+                      :'列表还是空的 —— 点下面的「＋ 新增游戏」，或去「③ 打分与验算」打完分再「保存到预算列表」。')+
+      '</td></tr>';
+  }
+  onIdx.forEach(function(i){ h+=acctRowHTML(i); });
+  $('acctBody').innerHTML=h;
+
+  var oh='';
+  offIdx.forEach(function(i){
+    var b=S.budget[i];
+    oh+='<tr data-row="'+i+'">'+expBtn(i,'')+nameCell(i,b)+
+      '<td><input type="number" class="a_time" data-i="'+i+'" step="1" min="0" value="'+(b.monthT===''?'':b.monthT)+'" placeholder="留空" style="width:88px"></td>'+
+      '<td class="num" id="ac_v_'+i+'">–</td>'+
+      '<td id="ac_o_'+i+'"></td></tr>';
+  });
+  $('offBody').innerHTML=oh;
+  set('offCount',offIdx.length);
+  $('offWrap').className='offbox'+(offIdx.length?'':' hidden');
+
+  ACCT_ROWS=S.budget.length;
+  for(var k=0;k<S.budget.length;k++) updateAcctRow(k);
+  updateAcctSum();
+  bindAcctBtns();
+}
+function expBtn(i,cls){
+  return '<td><button class="expander'+(EXOPEN[i]?' on':'')+'" data-ex="'+i+'" title="展开 / 收起编辑面板">'+
+    (EXOPEN[i]?'▾':'▸')+'</button></td>';
+}
+function nameCell(i,b){
+  return '<td class="namecell"><input type="text" class="a_name" data-i="'+i+'" value="'+esc(b.name)+'"></td>';
+}
+function dimInputs(i,b){
+  return S.dims.map(function(d){
+    var v=(b.s&&b.s[d.id]!==undefined)?b.s[d.id]:d.min;
+    return '<label><span class="dn" title="'+esc(d.name)+'　量程 '+d.min+' ~ '+d.max+'">'+esc(d.name)+'</span>'+
+      '<input type="number" class="a_s" data-i="'+i+'" data-d="'+esc(d.id)+'" step="0.05" min="'+d.min+'" max="'+d.max+'" value="'+v+'"></label>';
+  }).join('');
+}
+function acctRowHTML(i){
+  var b=S.budget[i];
+  return '<tr data-row="'+i+'">'+expBtn(i,'')+nameCell(i,b)+
+    '<td><input type="number" class="a_time" data-i="'+i+'" step="1" min="0" value="'+(b.monthT===''?'':b.monthT)+'" placeholder="留空" style="width:88px"></td>'+
+    '<td class="num" id="ac_v_'+i+'">–</td>'+
+    '<td><input type="number" class="a_due" data-i="'+i+'" step="0.01" value="'+num(b.due||0,2)+'" style="width:92px"></td>'+
+    '<td><input type="number" class="a_paid" data-i="'+i+'" step="0.01" min="0" value="'+num(b.paid||0,2)+'" style="width:92px"></td>'+
+    '<td class="num" id="ac_b_'+i+'">–</td>'+
+    '<td class="num" id="ac_t_'+i+'">–</td>'+
+    '<td id="ac_o_'+i+'"></td></tr>'+
+    '<tr class="exrow'+(EXOPEN[i]?'':' hidden')+'" data-exrow="'+i+'"><td colspan="9">'+
+      '<div class="exbox"><div class="ext">本条账户信息　'+
+        '<span style="font-weight:400;color:var(--tx3)">各维度评分在「② 预算与对账」里展开修改</span></div>'+
+        '<div class="exnote"><span>本月被动 h</span>'+
+        '<input type="number" class="a_tp" data-i="'+i+'" step="1" min="0" value="'+(b.Tp===''?'':b.Tp)+'" placeholder="无" style="width:64px">'+
+        '<em style="font-style:normal;font-size:11.5px;color:var(--tx3)">挂机、日常等被动时长</em></div>'+
+        '<div class="exnote"><span>被动折算 η</span>'+
+        '<input type="number" class="a_eta" data-i="'+i+'" step="0.1" value="'+(b.eta===''?'':b.eta)+'" placeholder="全局 '+S.P.eta+'" style="width:60px">'+
+        '<em style="font-style:normal;font-size:11.5px;color:var(--tx3)">该游戏专属：挂机可 0，烦人日常可 −0.5；留空用全局</em></div>'+
+        '<div class="exnote"><span>预计总时长</span>'+
+        '<input type="number" class="a_total" data-i="'+i+'" step="1" min="0" value="'+(b.totalT===''?'':b.totalT)+'" style="width:96px">'+
+        '<em style="font-style:normal;font-size:11.5px;color:var(--tx3)">买断口径用；每月额度只看本月时长</em></div>'+
+        '<div class="exnote"><span>备注</span>'+
+        '<input type="text" class="a_note" data-i="'+i+'" value="'+esc(b.note||'')+'"></div>'+
+      '</div></td></tr>';
+}
+/* 只更新某一行的派生列 —— 不重建 DOM，否则正在输入的框会失焦 */
+function updateAcctRow(i){
+  var b=S.budget[i]; if(!b) return;
+  var it=acctInfo(b), on=!!b.on;
+  var op=$('ac_o_'+i);
+  if(op){
+    var want='<button class="del" data-delb="'+i+'" title="从列表删除">×</button>';
+    if(on) want='<button class="btn sm" data-top="'+i+'">＋充值</button>'+
+                '<button class="btn sm" data-tick="'+i+'" title="手动补结算一个月">+1月</button>'+
+                '<button class="btn sm" data-off="'+i+'" title="移出记账，不再自动注入额度">不参与</button>'+want;
+    else want='<button class="btn sm" data-on="'+i+'">参与记账</button>'+want;
+    if(op.innerHTML!==want) op.innerHTML=want;
+  }
+  set('ac_v_'+i,num(budgetV(b).V,2));
+  var bl=$('ac_b_'+i), te=$('ac_t_'+i);
+  if(on){
+    if(bl){ bl.textContent=num(it.balance,2);
+            bl.className='num '+(it.balance<0?'balneg':(it.balance>0?'balpos':'')); }
+    if(te) te.textContent=it.tick;
+  }else{
+    if(bl){ bl.textContent='–'; bl.className='num'; }
+    if(te) te.textContent='–';
+  }
+  /* 展开面板若开着，同步按钮箭头 */
+  var bt=document.querySelector('.expander[data-ex="'+i+'"]');
+  if(bt){ bt.textContent=EXOPEN[i]?'▾':'▸'; bt.className='expander'+(EXOPEN[i]?' on':''); }
+}
+function updateAcctSum(){
+  if(!$('acctSum')) return;
+  var t=acctTotals();
+  if(!t.n){
+    $('acctSum').innerHTML='<div class="tip">'+
+      (S.budget.length?('列表有 '+S.budget.length+' 款，但都设为「不参与记账」—— 点其中一个的「参与记账」即可开始攒额度。')
+                      :'列表是空的。去「③ 打分与验算」打完分点「保存到预算列表」，或点上面的「＋ 新增游戏」。')+
+      '</div>';
+    return;
+  }
+  var monthsLeft=(t.V>0?t.balance/t.V:0);
+  var h='<div class="subkpi">';
+  h+='<div'+(t.balance<0?' class="lo"':' class="hi"')+'><div class="k">总余量</div>'+
+     '<div class="v">'+num(t.balance,2)+' <small>元</small></div></div>';
+  h+='<div><div class="k">每月注入</div><div class="v">'+num(t.V,2)+' <small>元/月</small></div></div>';
+  h+='<div><div class="k">累计参考 / 累计支出合计</div><div class="v">'+num(t.due,2)+
+     ' <small>/ '+num(t.paid,2)+' 元</small></div></div>';
+  h+='<div><div class="k">参与记账</div><div class="v">'+t.n+' <small>款 / 共 '+S.budget.length+
+     (t.off?('（'+t.off+' 款未参与）'):'')+'</small></div></div>';
+  h+='</div>';
+  var warn;
+  if(t.neg) warn='<div class="warnbox">有 <b>'+t.neg+'</b> 款游戏的余额是负的（累计支出超过了累计参考）。</div>';
+  else if(t.balance<=0) warn='<div class="warnbox">⚠ 总余量 '+num(t.balance,2)+' 元，没有攒下额度。下一份要等这个月的额度进来。</div>';
+  else warn='<div class="okbox">✓ 总余量 <b>'+num(t.balance,2)+' 元</b> —— 可以理解为「攒下来还没花」的额度，'+
+    (t.V>0?('按每月注入 '+num(t.V,2)+' 元算，约合 <b>'+num(monthsLeft,1)+' 个月</b>'):'')+
+    '。放着不会消失，下个月继续累加。</div>';
+  $('acctSum').innerHTML=h+warn;
+}
+/* 行数没变就只刷派生列 —— 重建 DOM 会把正在编辑的输入框打断 */
+var ACCT_ROWS=-1;
+function syncAcct(){
+  if(!$('acctBody')) return;
+  if(ACCT_ROWS!==S.budget.length){ renderAcct(); return; }
+  for(var i=0;i<S.budget.length;i++) updateAcctRow(i);
+  updateAcctSum();
+}
+function bindAcctBtns(){
+  $('btnAcctAdd').addEventListener('click',function(){
+    var r=SOf(valsOf(),S.dims,S.P), T=Number(TUsed().toFixed(1));
+    toast('新增一款到「预算与数据」：'+
+      '<div style="margin-top:9px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+      '<input type="text" id="nbName" placeholder="游戏名" style="width:172px">'+
+      '<input type="number" id="nbT" step="1" min="0" value="'+T+'" style="width:84px">'+
+      '<span style="opacity:.75">h/月</span></div>'+
+      '<div style="margin-top:7px;opacity:.72;font-size:12px">评分先沿用「③ 打分与验算」里当前的各维度打分（S = '+num(r.s,3)+
+      '），之后可以在本页展开随时改。</div>',null,[
+      {label:'新增',cls:'yes',fn:function(){
+        var nm=(($('nbName')||{}).value||'').trim();
+        if(!nm){ toast('先填一个游戏名','warn'); return; }
+        var t=parseFloat(($('nbT')||{}).value);
+        addBudget(nm,isFinite(t)?t:0,valsOf());
+        toast('已加入「'+esc(nm)+'」','ok');
+      }},
+      {label:'取消',cls:'no',fn:function(){}}
+    ]);
+  });
+  $('btnAcctTick').addEventListener('click',function(){
+    confirm2('给所有参与记账的游戏补结算一个月（累计参考各 +1 份当月额度）？',function(){
+      var n=0, sum=0;
+      S.budget.forEach(function(b){
+        if(!b.on) return;
+        var V=budgetV(b).V; b.due=r2(Number(b.due||0)+V); sum+=V; n++;
+        b.updatedAt=new Date().toISOString();
+      });
+      save(); renderAcct(); renderBudget(); renderSnapshot();
+      toast(n?('已给 '+n+' 款补结算，累计参考合计 +'+num(sum,2)+' 元'):'没有参与记账的游戏','ok');
+    });
+  });
+  $('btnAcctAll').addEventListener('click',function(){
+    var n=0;
+    S.budget.forEach(function(b){
+      if(!b.on){ b.on=true; if(!b.tick) b.tick=monthLabel(curMonth()); n++; }
+      b.updatedAt=new Date().toISOString();
+    });
+    save(); renderAcct(); renderBudget(); renderSnapshot();
+    toast(n?('已让 '+n+' 款参与记账'):'没有需要改的','ok');
+  });
+  $('btnAcctClear').addEventListener('click',function(){
+    confirm2('把全部游戏改为「不参与记账」？列表与评分不受影响，只是都不计入总余量。',function(){
+      S.budget.forEach(function(b){ b.on=false; b.updatedAt=new Date().toISOString(); });
+      save(); renderAcct(); renderBudget(); renderSnapshot();
+      toast('已全部改为不参与','ok');
+    });
+  });
+}
+function bindAcct(){
+  if(BOUND.acct) return;
+  BOUND.acct=1;
+  function onEdit(e){
+    var el=e.target, i=+el.getAttribute('data-i');
+    if(isNaN(i)||!S.budget[i]) return;
+    var cls=el.className||'', b=S.budget[i], hit=false;
+    if(cls.indexOf('a_name')>=0){ b.name=el.value; hit=true; }
+    else if(cls.indexOf('a_time')>=0){ b.monthT=(el.value===''?'':(parseFloat(el.value)||0)); hit=true; }
+    else if(cls.indexOf('a_due')>=0){ b.due=r2(el.value); hit=true; }
+    else if(cls.indexOf('a_paid')>=0){ b.paid=Math.max(0,r2(el.value)); hit=true; }
+    else if(cls.indexOf('a_total')>=0){ b.totalT=(el.value===''?'':r2(el.value)); hit=true; }
+    else if(cls.indexOf('a_tp')>=0){ b.Tp=(el.value===''?'':(parseFloat(el.value)||0)); hit=true; }
+    else if(cls.indexOf('a_eta')>=0){ b.eta=(el.value===''?'':(parseFloat(el.value)||0)); hit=true; }
+    else if(cls.indexOf('a_note')>=0){ b.note=el.value; hit=true; }
+    else if(cls.indexOf('a_s')>=0){ b.s[el.getAttribute('data-d')]=parseFloat(el.value)||0; hit=true; }
+    if(!hit) return;
+    b.updatedAt=new Date().toISOString();
+    save();
+    updateAcctRow(i); updateAcctSum(); renderBudget(); renderSnapshot();
+  }
+  ['acctBody','offBody'].forEach(function(id){
+    var box=$(id); if(!box) return;
+    box.addEventListener('input',onEdit);
+    box.addEventListener('click',function(e){
+      var el=e.target;
+      var ex=el.getAttribute&&el.getAttribute('data-ex');
+      if(ex!==null&&ex!==undefined){
+        var k=+ex; EXOPEN[k]=!EXOPEN[k];
+        var row=document.querySelector('[data-exrow="'+k+'"]');
+        if(row) row.classList[EXOPEN[k]?'remove':'add']('hidden');
+        var bt=document.querySelector('.expander[data-ex="'+k+'"]');
+        if(bt){ bt.textContent=EXOPEN[k]?'▾':'▸'; bt.className='expander'+(EXOPEN[k]?' on':''); }
+        return;
+      }
+      var o=el.getAttribute&&el.getAttribute('data-on');
+      if(o!==null&&o!==undefined){
+        var bi=+o; if(!S.budget[bi]) return;
+        S.budget[bi].on=true;
+        if(!S.budget[bi].tick) S.budget[bi].tick=monthLabel(curMonth());
+        S.budget[bi].updatedAt=new Date().toISOString();
+        save(); renderAcct(); renderBudget(); renderSnapshot(); return;
+      }
+      var offb=el.getAttribute&&el.getAttribute('data-off');
+      if(offb!==null&&offb!==undefined){
+        var bi2=+offb; if(!S.budget[bi2]) return;
+        S.budget[bi2].on=false;
+        S.budget[bi2].updatedAt=new Date().toISOString();
+        save(); renderAcct(); renderBudget(); renderSnapshot();
+        toast('「'+esc(S.budget[bi2].name)+'」已设为不参与记账（不再自动注入额度，随时可改回）','ok');
+        return;
+      }
+      var tk=el.getAttribute&&el.getAttribute('data-tick');
+      if(tk!==null&&tk!==undefined){ tickOne(+tk); return; }
+      var dl=el.getAttribute&&el.getAttribute('data-delb');
+      if(dl!==null&&dl!==undefined){ delBudget(+dl); return; }
+      var t=el.getAttribute&&el.getAttribute('data-top');
+      if(t===null||t===undefined) return;
+      var i=+t, b=S.budget[i]; if(!b) return;
+      var it=acctInfo(b); if(!it) return;
+      toast('给「'+esc(b.name)+'」记一笔充值（元）：'+
+        '<div style="margin-top:9px;display:flex;gap:8px;align-items:center">'+
+        '<input type="number" id="tpAmt" step="1" min="0" value="30" style="width:118px">'+
+        '<span style="opacity:.75">元</span></div>'+
+        '<div style="margin-top:7px;opacity:.72;font-size:12px">每月额度 V = '+num(it.V,2)+
+        ' 元　·　当前余额 '+num(it.balance,2)+' 元</div>',null,[
+        {label:'只记实付',cls:'yes',fn:function(){ topUpAcct(i,parseFloat(($('tpAmt')||{}).value),false); }},
+        {label:'并计入本期支出',cls:'yes',fn:function(){ topUpAcct(i,parseFloat(($('tpAmt')||{}).value),true); }},
+        {label:'取消',cls:'no',fn:function(){}}
+      ]);
+    });
+  });
+}
+
+/* ==================== ⑥ 设置 / 主题 ====================
+   存的是「偏好」：auto（跟随系统）/ light / dark。
+   只切 <html data-theme>，颜色全在 CSS 变量里；SVG 曲线用属性色，
+   拿不到 var()，所以切换后重画一次。 */
+var THEME_KEY='hj_theme';
+function themePref(){
+  try{ var t=localStorage.getItem(THEME_KEY); return (t==='dark'||t==='light')?t:'auto'; }
+  catch(e){ return 'auto'; }
+}
+function resolveTheme(p){
+  if(p!=='auto') return p;
+  try{ return (window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'; }
+  catch(e){ return 'light'; }
+}
+function curTheme(){ return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'; }   /* 测试与调试用 */
+function applyTheme(p,quiet){
+  var t=resolveTheme(p);
+  document.documentElement.setAttribute('data-theme',t);
+  try{ localStorage.setItem(THEME_KEY,p); }catch(e){}
+  var m=document.querySelector('meta[name="theme-color"]');
+  if(m) m.setAttribute('content',t==='dark'?'#161719':'#0f6e56');
+  document.querySelectorAll('#themeSeg button').forEach(function(x){
+    x.className=(x.getAttribute('data-th')===p)?'on':''; });
+  try{ renderChart(); }catch(e){}
+  if(!quiet) toast(p==='auto'?'主题已设为跟随系统':(t==='dark'?'已切换到夜间模式':'已切换到日间模式'),null);
+}
+function renderThemeRows(){
+  if(!$('themeRows')) return;
+  var p=themePref();
+  $('themeRows').innerHTML=
+    prow('主题','',
+      '<div class="seg" id="themeSeg">'+
+        '<button data-th="auto"'+(p==='auto'?' class="on"':'')+'>跟随系统</button>'+
+        '<button data-th="light"'+(p==='light'?' class="on"':'')+'>日间</button>'+
+        '<button data-th="dark"'+(p==='dark'?' class="on"':'')+'>夜间</button>'+
+      '</div>',
+      '跟随系统会在系统切换深浅色时自动跟着变；日间 / 夜间固定。');
+  $('themeSeg').addEventListener('click',function(e){
+    var t=e.target.getAttribute&&e.target.getAttribute('data-th'); if(!t) return;
+    applyTheme(t);
+  });
+}
+
+/* ---------- ⑥ 设置 · 关于 ---------- */
+function renderAbout(){
+  if(!$('aboutBox')) return;
+  var bytes=0; try{ bytes=JSON.stringify(S).length; }catch(e){}
+  $('aboutBox').innerHTML=kvHTML([
+    {k:'应用',v:esc(APP_NAME)+'（PWA · 单文件 · 零外部请求）'},
+    {k:'数据版本',v:'schema '+SCHEMA+'　<em>本机占用 '+num(bytes/1024,1)+' KB</em>'},
+    {k:'公式',v:'<code>V = k · S · T_eff</code>　<em>S 为三段幂函数压缩后的体验总分</em>'}
+  ]);
+}
+
+/* ==================== ④ 预算与数据 ==================== */
+/* 单款游戏的预算口径：本月有效时长 × k × S（S 取自该条自己的各维度评分） */
+function gameBudget(b){
+  var m=budgetV(b);
+  return {T:m.T,S:m.S,V:m.V,spent:Number(b.spent||0)};
+}
+function renderBudget(){
+  var P=S.P, T0=TUsed();
+  var h='';
+  h+=prow('月预算上限','',
+    '<input type="number" id="b_B" step="10" value="'+(S.budgetCap||0)+'"><span class="unit">元/月</span>',
+    '每个月愿意花在游戏上的总额上限。一旦「本期实际支出」超过它，下面会直接标红。','budget-B');
+  h+=prow('常用月时长','',
+    '<input type="number" id="b_commonT" step="0.5" min="0" value="'+(S.commonT||0)+'"><span class="unit">h</span>'+
+    '<button class="btn sm" id="b_fill">填入留空的游戏</button>',
+    '本页自己记住的常用值，与「③ 时间与口径」互不相干。先填一个数，再用右边按钮把「本月时长」留空的游戏补上；'+
+    '留空的游戏<b>不计入本月预算</b>。','budget-T');
+  $('budgetRows').innerHTML=h;
+
+  $('budgetHead').innerHTML='<tr><th style="min-width:34px"></th><th style="min-width:150px">游戏</th>'+
+    '<th class="num" style="min-width:104px">本月时长 h</th><th class="num" style="min-width:96px">参考氪金 V</th>'+
+    '<th class="num" style="min-width:104px">本期实际支出</th><th class="num" style="min-width:92px">差额 V−支出</th>'+
+    '<th class="num" style="min-width:88px">状态</th></tr>';
+  var onIdx=[],offIdx=[];
+  S.budget.forEach(function(sm,i){ (sm.on?onIdx:offIdx).push(i); });
+  var b='';
+  if(!S.budget.length){
+    b='<tr><td colspan="7" style="text-align:center;color:var(--tx3);padding:22px">预算列表是空的 —— 去「③ 打分与验算」打完分点「保存到预算列表」，或在上一子页「＋ 新增游戏」。</td></tr>';
+  }else if(!onIdx.length){
+    b='<tr><td colspan="7" style="text-align:center;color:var(--tx3);padding:22px">没有持续运营的游戏 —— 都在下面的「买断制 / 未参与记账」里。</td></tr>';
+  }
+  function budgetRowHTML(i,sm){
+    var g=gameBudget(sm), diff=g.V-g.spent, act=(g.T>0||g.spent>0);
+    var st='未纳入', cls='';
+    if(act){ if(diff<-0.005){st='超参考';cls='hot';} else if(diff>0.005){st='有余量';cls='cool';} else st='刚好'; }
+    var rawT=(sm.monthT===undefined||sm.monthT===null||sm.monthT==='')?'':sm.monthT;
+    var spentCell='<input type="number" class="b_spent" data-i="'+i+'" step="0.01" value="'+num(g.spent,2)+'" style="width:96px">';
+    return '<tr'+(act?'':' class="off"')+' data-row="'+i+'" data-bi="'+i+'">'+expBtn(i,'')+
+      '<td>'+esc(sm.name)+'</td>'+
+      '<td><input type="number" class="b_T" data-i="'+i+'" step="0.1" placeholder="留空=不计入" value="'+rawT+'" style="width:96px"></td>'+
+      '<td class="num" id="b_v_'+i+'">'+num(g.V,2)+'</td>'+
+      '<td id="b_sp_'+i+'">'+spentCell+'</td>'+
+      '<td class="num" id="b_d_'+i+'">'+(act?num(diff,2):'–')+'</td>'+
+      '<td class="num" id="b_s_'+i+'"><span class="tag'+(cls?' '+cls:'')+'">'+st+'</span></td></tr>'+
+      '<tr class="exrow'+(EXOPEN[i]?'':' hidden')+'" data-bexrow="'+i+'"><td colspan="7">'+
+        '<div class="exbox"><div class="ext">各维度评分（改完立刻影响参考氪金 V 与每月额度）　'+
+          '<span style="font-weight:400;color:var(--tx3)">量程与参考标准在「① 参数总台 · 维度」里调</span></div>'+
+          '<div class="exdims">'+dimInputs(i,sm)+'</div>'+
+          '<div class="exnote"><span>本月被动 h</span>'+
+          '<input type="number" class="b_tp" data-i="'+i+'" step="1" min="0" value="'+(sm.Tp===''?'':sm.Tp)+'" placeholder="无" style="width:64px">'+
+          '<em style="font-style:normal;font-size:11.5px;color:var(--tx3)">有效时长 = 本月时长 + η × 被动</em></div>'+
+          '<div class="exnote"><span>被动折算 η</span>'+
+          '<input type="number" class="b_eta" data-i="'+i+'" step="0.1" value="'+(sm.eta===''?'':sm.eta)+'" placeholder="全局 '+S.P.eta+'" style="width:60px">'+
+          '<em style="font-style:normal;font-size:11.5px;color:var(--tx3)">空 = 用全局 η；挂机可 0，烦人日常可 −0.5</em></div>'+
+        '</div></td></tr>';
+  }
+  onIdx.forEach(function(i){ b+=budgetRowHTML(i,S.budget[i]); });
+  var oh='';
+  offIdx.forEach(function(i){ oh+=budgetRowHTML(i,S.budget[i]); });
+  if($('budgetOffBody')) $('budgetOffBody').innerHTML=oh;
+  if($('budgetOffHead')) $('budgetOffHead').innerHTML=$('budgetHead').innerHTML;
+  if($('budgetOffCount')) set('budgetOffCount',offIdx.length);
+  if($('budgetOffWrap')) $('budgetOffWrap').className='offbox'+(offIdx.length?'':' hidden');
+  $('budgetBody').innerHTML=b;
+  updateBudgetSum();
+
+  $('b_B').addEventListener('input',function(){
+    S.budgetCap=parseFloat($('b_B').value)||0;
+    save(); updateBudgetSum(); renderSnapshot();
+  });
+  $('b_commonT').addEventListener('input',function(){
+    S.commonT=parseFloat($('b_commonT').value)||0;
+    save(); renderSnapshot();
+  });
+  $('b_fill').addEventListener('click',function(){
+    var v=Number(S.commonT||0);
+    if(!v){ toast('先在「常用月时长」里填一个数','warn'); return; }
+    var n=0;
+    S.budget.forEach(function(sm){
+      if(sm.monthT===undefined||sm.monthT===null||sm.monthT===''||Number(sm.monthT)===0){ sm.monthT=v; n++; }
+    });
+    save(); renderBudget(); toast('已把 '+n+' 款游戏的本月时长填成 '+num(v,1)+' h','ok');
+  });
+}
+function updateBudgetRow(i){
+  var sm=S.budget[i];
+  /* 展开行与主行混在同一个 tbody 里，主行用 data-bi 定位 */
+  var tr=document.querySelector('#budgetBody tr[data-bi="'+i+'"], #budgetOffBody tr[data-bi="'+i+'"]');
+  if(!tr||!sm) return;
+  var g=gameBudget(sm), diff=g.V-g.spent, act=(g.T>0||g.spent>0);
+  var td=tr.children;
+  td[3].textContent=num(g.V,2);
+  td[5].textContent=act?num(diff,2):'–';
+  var st='未纳入', cls='';
+  if(act){ if(diff<-0.005){st='超参考';cls='hot';} else if(diff>0.005){st='有余量';cls='cool';} else st='刚好'; }
+  td[6].innerHTML='<span class="tag'+(cls?' '+cls:'')+'">'+st+'</span>';
+  tr.className=act?'':'off';
+}
+function updateBudgetSum(){
+  if(!$('budgetSum')) return;
+  var B=Number(S.budgetCap||0), sumV=0, sumS=0, cnt=0;
+  S.budget.forEach(function(sm){
+    var g=gameBudget(sm);
+    sumV+=g.V; sumS+=g.spent;
+    if(g.T>0||g.spent>0) cnt++;
+  });
+  var warn='';
+  if(B<=0) warn='<div class="tip">还没设月预算（B = 0 视为不限）。建议填一个数，「超支提醒」才有意义。</div>';
+  else if(sumS>B) warn='<div class="warnbox">⚠ 本期实际支出 <b>'+num(sumS,2)+' 元</b> 已超过月预算 '+num(B,2)+
+    ' 元，超了 <b>'+num(sumS-B,2)+' 元</b>。按页③ 的 z 排序，先砍掉每小时最不值的那款。</div>';
+  else if(sumV>B) warn='<div class="warnbox">⚠ 参考总额（'+num(sumV,2)+' 元）超过了月预算：这几款加起来「该花」的钱本身就超标了 —— '+
+    '要么提高预算，要么放弃其中一款。</div>';
+  else warn='<div class="okbox">✓ 在预算内。参考总额 '+num(sumV,2)+' 元、实际 '+num(sumS,2)+
+    ' 元，都低于预算 '+num(B,2)+' 元。</div>';
+  $('budgetSum').innerHTML='<div class="kv" style="margin-top:18px">'+kvHTML([
+    {k:'月预算上限 B',v:'<b>'+num(B,2)+'</b> 元'+(B>0?'':'　<em>未设，视为不限</em>')},
+    {k:'参考总额 ΣV',v:'<b>'+num(sumV,2)+'</b> 元　<em>'+cnt+' 款计入本月</em>'},
+    {k:'本期实际 Σ支出',v:'<b>'+num(sumS,2)+'</b> 元'},
+    {k:'剩余预算（B − Σ支出）',v:'<b class="hl">'+num(B-sumS,2)+'</b> 元'+(B>0?'　<em>已用 '+num(sumS/B*100,1)+'%</em>':'')},
+    {k:'剩余参考额度（B − ΣV）',v:'<b>'+num(B-sumV,2)+'</b> 元　<em>还能"值这么多"的额度</em>'}
+  ])+'</div>'+warn;
+}
+function bindBudget(){
+  if(BOUND.budget) return;
+  BOUND.budget=1;
+  ['budgetBody','budgetOffBody'].forEach(function(id){
+    var b=$(id); if(!b) return;
+    b.addEventListener('input',handleBudgetInput);
+    b.addEventListener('click',handleBudgetClick);
+  });
+  $('btnClearB').addEventListener('click',function(){
+    confirm2('清空所有游戏的「本月时长」「本月被动」与「本期实际支出」？列表本身不动。',function(){
+      S.budget.forEach(function(sm){ sm.monthT=0; sm.Tp=''; sm.spent=0; });
+      save(); renderBudget(); refreshAll(); toast('本月数据已清空','ok');
+    });
+  });
+}
+function handleBudgetInput(e){
+  var el=e.target, i=+el.getAttribute('data-i');
+  if(isNaN(i)||!S.budget[i]) return;
+  var cls=el.className||'', sm=S.budget[i], hit=false;
+  if(cls.indexOf('b_T')>=0){
+    sm.monthT=(el.value===''?'':r2(el.value));
+    sm.updatedAt=new Date().toISOString(); hit=true;
+  } else if(cls.indexOf('b_spent')>=0){
+    sm.spent=r2(el.value);
+    sm.updatedAt=new Date().toISOString(); hit=true;
+  } else if(cls.indexOf('a_s')>=0){
+    sm.s[el.getAttribute('data-d')]=parseFloat(el.value)||0;
+    sm.updatedAt=new Date().toISOString(); hit=true;
+  } else if(cls.indexOf('b_tp')>=0){
+    sm.Tp=(el.value===''?'':(parseFloat(el.value)||0));
+    sm.updatedAt=new Date().toISOString(); hit=true;
+  } else if(cls.indexOf('b_eta')>=0){
+    sm.eta=(el.value===''?'':(parseFloat(el.value)||0));
+    sm.updatedAt=new Date().toISOString(); hit=true;
+  } else return;
+  save();
+  updateBudgetRow(i); updateBudgetSum();
+  syncAcct();                                        /* 额度账户也用同一批数据 */
+  renderSnapshot();
+}
+function handleBudgetClick(e){
+  var el=e.target;
+  var ex=el.getAttribute&&el.getAttribute('data-ex');
+  if(ex===null||ex===undefined) return;
+  var k=+ex; EXOPEN[k]=!EXOPEN[k];
+  var row=document.querySelector('[data-bexrow="'+k+'"]');
+  if(row) row.classList[EXOPEN[k]?'remove':'add']('hidden');
+  var bt=document.querySelector('.expander[data-ex="'+k+'"]');
+  if(bt){ bt.textContent=EXOPEN[k]?'▾':'▸'; bt.className='expander'+(EXOPEN[k]?' on':''); }
+}
+
+/* ---------- 数据同步：导出 / 导入 / 合并 ---------- */
+function normName(x){ return String(x||'').trim().toLowerCase().replace(/\s+/g,''); }
+function renderDataStat(){
+  if(!$('dataStat')) return;
+  var calib=S.samples.filter(function(sm){ return sm.on; }).length;
+  var bytes=0; try{ bytes=JSON.stringify(S).length; }catch(e){}
+  $('dataStat').innerHTML=kvHTML([
+    {k:'k 标定样本',v:S.samples.length+' 款　<em>其中 '+calib+' 款纳入标定（累计口径）</em>'},
+    {k:'预算与数据',v:S.budget.length+' 款　<em>当月口径</em>'},
+    {k:'额度账户',v:(function(){ var t=acctTotals();
+      return t.n?(t.n+' 款参与记账　每月注入 '+num(t.V,2)+' 元　总余量 <b class="hl">'+num(t.balance,2)+'</b> 元')
+                :'<em>0 款参与记账</em>'; })()},
+    {k:'维度',v:S.dims.length+' 个　<em>参与计算 '+S.dims.filter(function(d){ return d.w>0; }).length+' 个</em>'},
+    {k:'数据版本',v:'schema '+SCHEMA},
+    {k:'最后修改',v:S.updatedAt?new Date(S.updatedAt).toLocaleString('zh-CN'):'—'},
+    {k:'本机占用',v:num(bytes/1024,1)+' KB　<em>存在本机，不上传任何服务器</em>'}
+  ]);
+}
+var APP_NAME='氪金价值工作台';
+function dl(name,text){
+  var blob=new Blob([text],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  return name;
+}
+function stamp(){
+  var d=new Date(), p2=function(n){ return String(n).length<2?('0'+n):String(n); };
+  return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'_'+p2(d.getHours())+p2(d.getMinutes());
+}
+/* scope='all' 全量包 / 'month' 月度增量包 */
+function exportJSON(scope){
+  scope=(scope==='month')?'month':'all';
+  var d;
+  if(scope==='month'){
+    var period=monthLabel(curMonth()), rows=[];
+    S.budget.forEach(function(b){
+      var mT=Number(b.monthT||0)||0, sp=r2(b.spent||0);
+      if(mT>0||sp>0) rows.push({name:b.name, T:r2(mT), p:r2(Number(b.Tp||0)), spent:sp});
+    });
+    if(!rows.length){ toast('本月没有已填写的时长或支出，先到「预算与对账」填一下','warn'); return; }
+    d=dl('氪金_本月游玩_'+period+'_'+stamp()+'.json', JSON.stringify(
+      {app:APP_NAME, schema:SCHEMA, scope:'month', period:period,
+       exportedAt:new Date().toISOString(), rows:rows}, null, 2));
+    toast('已导出 '+d+'（'+rows.length+' 款）→ 在电脑上「导入并合并」','ok');
+  }else{
+    d=dl('氪金_全部数据_'+stamp()+'.json', JSON.stringify(
+      {app:APP_NAME, schema:SCHEMA, scope:'all',
+       exportedAt:new Date().toISOString(), data:S}, null, 2));
+    toast('已导出 '+d+'→ 在另一台设备上「导入并覆盖」','ok');
+  }
+}
+function parseImport(txt){
+  var o=JSON.parse(txt);
+  if(o&&o.scope==='month') return {scope:'month', period:o.period||'', rows:o.rows||[],
+                                    app:o.app||'未知来源', exportedAt:o.exportedAt||'', data:null};
+  if(o&&o.data) return {scope:'all', data:o.data, exportedAt:o.exportedAt||'', app:o.app||'未知来源'};
+  return {scope:'all', data:o, exportedAt:(o&&o.updatedAt)||'', app:'裸数据'};
+}
+/* 月度增量包：一律累加（它是「这段时间新增的量」） */
+function mergeMonthPackage(pkg){
+  tickBudget();                                  /* 先把应付结到本月，再并入增量 */
+  var rep=[], rows=pkg.rows||[], addN=0, newS=0, newB=0, sumT=0, sumP=0;
+  rows.forEach(function(r){
+    if(!r||!r.name) return;
+    var mT=r2(r.T||0), sp=r2(r.spent||0), pp=r2(r.p||0);
+    if(mT===0&&sp===0&&pp===0) return;
+    var nm=normName(r.name);
+    var sm=null, i;
+    for(i=0;i<S.samples.length;i++) if(normName(S.samples[i].name)===nm){ sm=S.samples[i]; break; }
+    if(!sm){
+      sm=normSample({name:r.name,T:0,Tp:0,pay:0,on:true,s:{}});
+      S.dims.forEach(function(d){ sm.s[d.id]=(d.min||0); });
+      S.samples.push(sm); newS++;
+    }
+    sm.T=r2(Number(sm.T||0)+mT);
+    sm.Tp=r2(Number(sm.Tp||0)+pp);
+    sm.pay=r2(Number(sm.pay||0)+sp);
+    sm.updatedAt=new Date().toISOString();
+    var b=null;
+    for(i=0;i<S.budget.length;i++) if(normName(S.budget[i].name)===nm){ b=S.budget[i]; break; }
+    if(!b){
+      b=normBudget({name:r.name,monthT:0,spent:0,due:0,paid:0,on:true,
+                    tick:monthLabel(curMonth()),s:Object.assign({},sm.s)});
+      S.budget.push(b); newB++;
+    }
+    var oldV=budgetV(b).V;
+    b.monthT=r2(Number(b.monthT||0)+mT);
+    b.Tp=(b.Tp===''?pp:r2(Number(b.Tp||0)+pp));
+    b.spent=r2(Number(b.spent||0)+sp);
+    b.paid=r2(Number(b.paid||0)+sp);
+    b.due=r2(Number(b.due||0)+(budgetV(b).V-oldV));   /* 本月这一份按新额度补齐差额 */
+    b.updatedAt=new Date().toISOString();
+    addN++; sumT+=mT; sumP+=sp;
+  });
+  rep.push({k:'并入增量',v:'<b>'+addN+'</b> 款　时长合计 +<b>'+num(sumT,2)+'</b> h　支出合计 +<b>'+num(sumP,2)+
+    '</b> 元　<em>账期 '+esc(pkg.period||'未标注')+'</em>'});
+  if(newS||newB) rep.push({k:'新建条目',v:'k 标定表新增 <b>'+newS+'</b> 款　预算表新增 <b>'+newB+'</b> 款'});
+  return rep;
+}
+/* 合并：返回报告数组。规则见页面上的说明 */
+function mergeAll(inc){
+  var rep=[];
+  var incNew=!!(inc.updatedAt&&(!S.updatedAt||String(inc.updatedAt)>String(S.updatedAt)));
+  var dAdd=0,dUpd=0;
+  (inc.dims||[]).forEach(function(d){
+    if(!d||!d.id) return;
+    var t=null;
+    for(var i=0;i<S.dims.length;i++) if(S.dims[i].id===d.id) t=S.dims[i];
+    if(!t){
+      S.dims.push({id:d.id,name:d.name||d.id,w:(d.w===undefined?1:d.w),nw:(d.nw===undefined?(d.w===undefined?1:d.w):d.nw),min:(d.min===undefined?0:d.min),
+        max:(d.max===undefined?3:d.max),val:(d.val===undefined?1:d.val),
+        anchors:(d.anchors&&d.anchors.length)?d.anchors:[{v:0,t:'底线'},{v:1,t:'一般'},{v:3,t:'顶尖'}]});
+      dAdd++;
+    }else if(incNew){
+      if(d.name)t.name=d.name; if(d.w!==undefined)t.w=d.w; if(d.nw!==undefined)t.nw=d.nw;
+      if(d.min!==undefined)t.min=d.min; if(d.max!==undefined)t.max=d.max;
+      if(d.anchors&&d.anchors.length)t.anchors=d.anchors;
+      dUpd++;
+    }
+  });
+  rep.push({k:'维度',v:'新增 <b>'+dAdd+'</b> 个，属性更新 <b>'+dUpd+'</b> 个　<em>取并集，本地独有的维度不会被删</em>'});
+  if(incNew){
+    if(inc.P) for(var kk in P_DEFAULT) if(inc.P[kk]!==undefined) S.P[kk]=inc.P[kk];
+    if(S.P.negMode!=='base') S.P.negMode='base';
+    if(inc.tiers&&inc.tiers.length) S.tiers=inc.tiers;
+    if(inc.mode) S.mode=inc.mode;
+    rep.push({k:'参数 / 档位 / 口径',v:'采用<b>导入文件</b>那两份里的较新版本'});
+  }else{
+    rep.push({k:'参数 / 档位 / 口径',v:'保留<b>本机</b>那份（本机修改时间更新或相同）'});
+  }
+  var gAdd=0,gUpd=0,maxFix=[],newFix=[],gAddNames=[],gUpdNames=[];
+  (inc.samples||[]).forEach(function(g){
+    if(!g||!g.name) return;
+    var t=null;
+    for(var i=0;i<S.samples.length;i++) if(normName(S.samples[i].name)===normName(g.name)) t=S.samples[i];
+    if(!t){
+      S.samples.push({name:g.name,T:Number(g.T||0),Tp:Number(g.Tp||0),pay:Number(g.pay||0),
+        eta:(g.eta===undefined||g.eta===null||g.eta==='')?'':Number(g.eta),
+        on:!!g.on,monthT:(g.monthT===undefined?0:Number(g.monthT)||0),spent:Number(g.spent||0),
+        startAt:(function(){ var t=String(g.startAt||'').trim(); return t.length>7?t.slice(0,7):t; })(),
+        note:g.note||'',updatedAt:g.updatedAt||new Date().toISOString(),s:g.s||{}});
+      gAdd++; gAddNames.push(g.name); return;
+    }
+    gUpd++; gUpdNames.push(g.name);
+    [['T','主动时长'],['Tp','被动时长'],['pay','累计实付']].forEach(function(f){
+      var a=Number(t[f[0]]||0), b=Number(g[f[0]]||0);
+      var v=(S.mergeMode==='sum')?r2(a+b):Math.max(a,b);
+      if(v!==a){ t[f[0]]=v; maxFix.push(g.name+' · '+f[1]+'（'+num(a,2)+' → '+num(v,2)+'）'); }
+    });
+    var tn=t.updatedAt||'', gn=g.updatedAt||'';
+    if(gn&&gn>tn){
+      if(g.s) t.s=Object.assign({},t.s,g.s);
+      if(g.note!==undefined) t.note=g.note;
+      if(g.on!==undefined) t.on=g.on;
+      if(g.eta!==undefined) t.eta=g.eta;
+      if(g.monthT!==undefined) t.monthT=g.monthT;
+      if(g.spent!==undefined) t.spent=g.spent;
+      if(g.startAt!==undefined){ var st0=String(g.startAt||'').trim(); t.startAt=st0.length>7?st0.slice(0,7):st0; }
+      t.updatedAt=gn; newFix.push(g.name);
+    }
+  });
+  rep.push({k:'游戏',v:'新增 <b>'+gAdd+'</b> 款'+(gAddNames.length?('：'+gAddNames.map(function(x){ return esc(x); }).join('、')):'')+
+    '　·　同名匹配上 <b>'+gUpd+'</b> 款'+(gUpdNames.length?('：'+gUpdNames.map(function(x){ return esc(x); }).join('、')):'')+
+    '　<em>同名视为同一款游戏</em>'});
+  if(maxFix.length) rep.push({k:(S.mergeMode==='sum'?'累计量已相加':'累计量取了较大值'),
+    v:maxFix.map(function(x){ return esc(x); }).join('<br>')+
+    (S.mergeMode==='sum'
+      ? '<br><em>若这份文件并非增量（两台都记过同一段时间），相加会翻倍，请核对上面几处。</em>'
+      : '<br><em>若两台记录的是不同时间段，正确结果应是相加 —— 可改用「相加」再合一次。</em>')});
+  if(newFix.length) rep.push({k:'评分/备注取了较新',v:newFix.map(function(x){ return esc(x); }).join('、')});
+  /* 预算与数据：同名匹配，累计实付取较大，其余按较新覆盖 */
+  var bAdd=0,bUpd=0;
+  (inc.budget||[]).forEach(function(g){
+    if(!g||!g.name) return;
+    var t=null;
+    for(var i=0;i<S.budget.length;i++) if(normName(S.budget[i].name)===normName(g.name)) t=S.budget[i];
+    if(!t){ S.budget.push(normBudget(g)); bAdd++; return; }
+    bUpd++;
+    var tp=Number(t.pay||0), gp=Number(g.pay||0);
+    t.pay=(S.mergeMode==='sum')?r2(tp+gp):Math.max(tp,gp);
+    var tg=t.updatedAt||'', gg=g.updatedAt||'';
+    if(gg&&gg>tg){
+      if(g.s) t.s=Object.assign({},t.s,g.s);
+      if(g.monthT!==undefined) t.monthT=g.monthT;
+      if(g.Tp!==undefined) t.Tp=g.Tp;
+      if(g.eta!==undefined) t.eta=g.eta;
+      if(g.totalT!==undefined) t.totalT=normBudget(g).totalT;
+      if(g.spent!==undefined) t.spent=g.spent;
+      if(g.startAt!==undefined) t.startAt=normBudget(g).startAt;
+      if(g.note!==undefined) t.note=g.note;
+      t.updatedAt=gg;
+    }
+  });
+  if(bAdd||bUpd) rep.push({k:'预算与数据',v:'新增 <b>'+bAdd+'</b> 款，同名匹配上 <b>'+bUpd+
+    '</b> 款　<em>累计支出'+(S.mergeMode==='sum'?'相加':'取较大')+'，其余取较新</em>'});
+  S.samples.forEach(function(g){ S.dims.forEach(function(d){ if(g.s[d.id]===undefined) g.s[d.id]=(d.min||0); }); });
+  S.budget.forEach(function(g){ S.dims.forEach(function(d){ if(g.s[d.id]===undefined) g.s[d.id]=(d.min||0); }); });
+  return rep;
+}
+function applyImport(text,mode){
+  var pkg;
+  try{ pkg=parseImport(text); }catch(e){ toast('解析失败：'+esc(e.message),'warn'); return; }
+  if(pkg.scope==='month'){                      /* 月度增量包：一律累加 */
+    var rp=mergeMonthPackage(pkg);
+    if(pkg.period&&S.periods.indexOf(pkg.period)<0) S.periods.push(pkg.period);
+    S.updatedAt=new Date().toISOString();
+    save(); boot();
+    $('mergeReport').innerHTML='<div class="okbox">✓ <b>已并入本月增量</b>　·　来源：'+esc(pkg.app)+
+      '　·　账期：'+esc(pkg.period||'未标注')+'　·　导出时间：'+esc(pkg.exportedAt||'未知')+'</div>'+
+      '<div class="kv" style="margin-top:14px">'+kvHTML(rp)+'</div>';
+    toast('已并入本月增量','ok'); return;
+  }
+  var inc=pkg.data;
+  if(!inc||!inc.dims||!inc.dims.length){ toast('文件里没有维度数据，可能不是本工具导出的。','warn'); return; }
+  var head='<div class="'+(mode==='replace'?'warnbox':'okbox')+'">'+
+    (mode==='replace'?'已<b>整份覆盖</b>本机数据':'✓ <b>合并完成</b>')+
+    '　·　来源：'+esc(pkg.app)+'　·　导出时间：'+esc(pkg.exportedAt||'未知')+'</div>';
+  if(mode==='replace'){
+    S.dims=inc.dims; S.P=Object.assign({},S.P,inc.P||{});
+    if(S.P.negMode!=='base') S.P.negMode='base'; S.samples=inc.samples||[];
+    if(inc.tiers) S.tiers=inc.tiers; if(inc.mode) S.mode=inc.mode;
+    S.updatedAt=inc.updatedAt||new Date().toISOString();
+    save(); boot();
+    $('mergeReport').innerHTML=head;
+  }else{
+    var rep=mergeAll(inc);
+    save(); boot();
+    $('mergeReport').innerHTML=head+'<div class="kv" style="margin-top:14px">'+kvHTML(rep)+'</div>';
+  }
+  toast(mode==='replace'?'已覆盖导入':'合并完成','ok');
+}
+var pendingMode='merge';
+function renderMergeRows(){
+  if(!$('mergeRows')) return;
+  $('mergeRows').innerHTML=prow('合并方式','',
+    '<div class="seg" id="mergeSeg">'+
+      '<button data-mm="max"'+(S.mergeMode!=='sum'?' class="on"':'')+'>取较大</button>'+
+      '<button data-mm="sum"'+(S.mergeMode==='sum'?' class="on"':'')+'>相加</button>'+
+    '</div>',
+    '作用于「累计时长」与「累计实付」。<b>取较大</b>：两份都记过同一段时间时不会翻倍；'+
+    '<b>相加</b>：把另一台设备记录的量累加进来，适合增量包。','merge-mode');
+  $('mergeSeg').addEventListener('click',function(e){
+    var m=e.target.getAttribute&&e.target.getAttribute('data-mm'); if(!m) return;
+    S.mergeMode=m; save();
+    document.querySelectorAll('#mergeSeg button').forEach(function(b){
+      b.className=(b.getAttribute('data-mm')===m)?'on':''; });
+    renderSnapshot();
+  });
+}
+function bindDataPage(){
+  if(BOUND.data) return;
+  BOUND.data=1;
+  var fi=$('fileImport2');
+  function pick(mode){ pendingMode=mode; fi.click(); }
+  renderMergeRows();
+  $('btnExportAll').addEventListener('click',function(){ exportJSON('all'); });
+  $('btnExportMonth').addEventListener('click',function(){ exportJSON('month'); });
+  $('btnImportMerge').addEventListener('click',function(){ pick('merge'); });
+  $('btnImportReplace').addEventListener('click',function(){ pick('replace'); });
+  fi.addEventListener('change',function(e){
+    var f=e.target.files&&e.target.files[0]; if(!f) return;
+    var fr=new FileReader();
+    fr.onload=function(){
+      var txt=String(fr.result);
+      var probe=null; try{ probe=parseImport(txt); }catch(e){}
+      if(probe&&probe.scope==='month'){
+        var p=probe.period||'';
+        var dup=(p&&S.periods.indexOf(p)>=0);
+        var n=(probe.rows||[]).length;
+        confirm2('这是<b>本月增量包</b>（账期 '+esc(p||'未标注')+'，'+n+' 款）。<br>并入后时长与支出会<b>累加到</b>现有数据上。'+
+          (dup?'<br><b>注意：这个账期之前已经导入过一次，再导入会重复计入。</b>':''),
+          function(){ applyImport(txt,'month'); },
+          dup?'仍然合并':'合并');
+        e.target.value=''; return;
+      }
+      if(pendingMode==='replace'){
+        confirm2('覆盖导入会<b>丢弃本机现有数据</b>，确定？',function(){ applyImport(txt,'replace'); });
+      } else if(pendingMode==='merge'){
+        applyImport(txt,'merge');
+      } else {
+        toast('已读取 '+esc(f.name)+'（'+num(txt.length/1024,1)+' KB）· 怎么处理？',null,[
+          {label:'合并',cls:'yes',fn:function(){ applyImport(txt,'merge'); }},
+          {label:'覆盖',cls:'no',fn:function(){ confirm2('覆盖导入会丢弃本机现有数据，确定？',function(){ applyImport(txt,'replace'); }); }},
+          {label:'取消',cls:'no',fn:function(){}}
+        ]);
+      }
+    };
+    fr.onerror=function(){ toast('文件读取失败','warn'); };
+    fr.readAsText(f);
+    e.target.value='';
+  });
+}
+
+/* ==================== ⑤ 曲线 ==================== */
+/* SVG 的 presentation attribute 不认 var()，所以取一次计算值 */
+function uiC(){
+  var cs=null; try{ cs=getComputedStyle(document.documentElement); }catch(e){}
+  var g=function(n,d){ var v=cs?cs.getPropertyValue(n):''; v=(v||'').trim(); return v||d; };
+  return {grid:g('--line2','#f1efe9'), axis:g('--line','#e3e1da'), tx2:g('--tx2','#6b6a63'),
+          tx3:g('--tx3','#9d9b92'), flat:g('--c-flat','#c9c6bd'), sqrt:g('--c-sqrt','#e0b48c'),
+          accent:g('--accent','#0f6e56'), warn:g('--warn','#993c1d'), ink:g('--tx','#26251f'),
+          ring:g('--dot-ring','#ffffff')};
+}
+function renderChart(){
+  var P=S.P, C=uiC();
+  var W=680,H=400,pl=50,pr=20,pt=18,pb=40;
+  var XMIN=-1.5,XMAX=2.1,YMIN=-2.3,YMAX=2.1;
+  var sx=function(v){ return pl+(Math.log10(v)-XMIN)/(XMAX-XMIN)*(W-pl-pr); };
+  var sy=function(v){ return H-pb-(Math.log10(v)-YMIN)/(YMAX-YMIN)*(H-pt-pb); };
+  var s='';
+  [0.1,1,10,100].forEach(function(v){
+    var x=sx(v);
+    s+='<line x1="'+x.toFixed(1)+'" y1="'+pt+'" x2="'+x.toFixed(1)+'" y2="'+(H-pb)+'" stroke="'+C.grid+'"/>'+
+       '<text x="'+x.toFixed(1)+'" y="'+(H-pb+17)+'" fill="'+C.tx3+'" font-size="11" text-anchor="middle">'+v+'</text>';
+  });
+  [0.01,0.1,1,10,100].forEach(function(v){
+    var y=sy(v);
+    s+='<line x1="'+pl+'" y1="'+y.toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y.toFixed(1)+'" stroke="'+C.grid+'"/>'+
+       '<text x="'+(pl-8)+'" y="'+(y+4).toFixed(1)+'" fill="'+C.tx3+'" font-size="11" text-anchor="end">'+v+'</text>';
+  });
+  s+='<line x1="'+pl+'" y1="'+(H-pb)+'" x2="'+(W-pr)+'" y2="'+(H-pb)+'" stroke="'+C.axis+'"/>'+
+     '<line x1="'+pl+'" y1="'+pt+'" x2="'+pl+'" y2="'+(H-pb)+'" stroke="'+C.axis+'"/>'+
+     '<text x="'+(W-pr)+'" y="'+(H-pb+31)+'" fill="'+C.tx2+'" font-size="11" text-anchor="end">S_raw（加权连乘）→</text>'+
+     '<text x="'+(pl-40)+'" y="'+(pt+11)+'" fill="'+C.tx2+'" font-size="11">S ↑</text>';
+  function path(fn,color,dash,wid){
+    var d='',started=false;
+    for(var i=0;i<=260;i++){
+      var lx=XMIN+(XMAX-XMIN)*i/260, x=Math.pow(10,lx), y=fn(x);
+      if(!isFinite(y)||y<=0){ started=false; continue; }
+      var py=sy(y);
+      if(py<pt-60||py>H-pb+60){ started=false; continue; }
+      d+=(started?' L ':' M ')+sx(x).toFixed(1)+' '+py.toFixed(1);
+      started=true;
+    }
+    return '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+wid+'"'+
+      (dash?' stroke-dasharray="5 4"':'')+' stroke-linejoin="round"/>';
+  }
+  s+=path(function(x){ return x; },C.flat,true,1.5);
+  s+=path(function(x){ return Math.sqrt(x); },C.sqrt,true,1.5);
+  s+=path(function(x){ return compressS(x,P); },C.accent,false,2.4);
+  if(P.om){
+    [[P.a,'a'],[P.b,'b']].forEach(function(bp){
+      var v=bp[0];
+      if(v>0&&Math.log10(v)>=XMIN&&Math.log10(v)<=XMAX){
+        var x=sx(v);
+        s+='<line x1="'+x.toFixed(1)+'" y1="'+pt+'" x2="'+x.toFixed(1)+'" y2="'+(H-pb)+'" stroke="'+C.accent+'" stroke-width="1" stroke-dasharray="2 3" opacity=".45"/>'+
+           '<text x="'+x.toFixed(1)+'" y="'+(pt+11)+'" fill="'+C.accent+'" font-size="10" text-anchor="middle">'+bp[1]+'='+v+'</text>';
+      }
+    });
+  }
+  S.samples.forEach(function(sm){
+    if(!sm.on) return;
+    var r=SOf(sm.s,S.dims,P), m=Math.abs(r.sraw), y=Math.abs(r.s);
+    if(m<=0||y<=0) return;
+    if(sx(m)<pl||sx(m)>W-pr||sy(y)<pt||sy(y)>H-pb) return;
+    s+='<circle cx="'+sx(m).toFixed(1)+'" cy="'+sy(y).toFixed(1)+'" r="3.6" fill="'+C.ink+'"/>';
+  });
+  var cr=SOf(valsOf(),S.dims,P), cm=Math.abs(cr.sraw), cy=Math.abs(cr.s);
+  if(cm>0&&sx(cm)>=pl&&sx(cm)<=W-pr&&sy(cy)>=pt&&sy(cy)<=H-pb){
+    s+='<line x1="'+sx(cm).toFixed(1)+'" y1="'+pt+'" x2="'+sx(cm).toFixed(1)+'" y2="'+(H-pb)+'" stroke="'+C.warn+'" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>'+
+       '<circle cx="'+sx(cm).toFixed(1)+'" cy="'+sy(cy).toFixed(1)+'" r="5.5" fill="'+C.warn+'" stroke="'+C.ring+'" stroke-width="1.8"/>';
+  }
+  $('chart').innerHTML=s;
+  var lx=0.1, ly=compressS(lx,P);
+  if(!P.om) $('chartNote').innerHTML='<div class="tip">压缩已关闭，主色线与灰线重合。</div>';
+  else if(ly>lx) $('chartNote').innerHTML='<div class="warnbox">⚠ 低档处（S_raw = 0.1）压缩后得到 '+num(ly,4)+
+    '，<b>大于</b>原始值 —— 参数在「填谷」。检查 α_L 是否小于 1。</div>';
+  else $('chartNote').innerHTML='<div class="okbox">✓ 低档曲线位于灰线之下（0.1 → '+num(ly,4)+
+    '），只削峰不填谷。断点 a='+P.a+'、b='+P.b+' 已用竖虚线标出。</div>';
+}
+
+/* ==================== 刷新与启动 ==================== */
+function refreshAll(){
+  renderPipe();
+  renderSnapshot();
+  syncAcct();
+  renderTimeEcho();
+  renderBudget();
+  renderDataStat();
+  renderCalc();
+  updateK();
+  renderChart();
+  renderNegBox();
+}
+function boot(){
+  renderPay();
+  renderTime();
+  renderDims();
+  renderComp();
+  renderNeg();
+  renderOut();
+  renderThemeRows();
+  renderAbout();
+  bindDimGrid();
+  bindScorePanel();
+  bindSamples();
+  bindTiers();
+  ['subParamsNav','subKcalNav','subCalcNav','subDataNav'].forEach(function(id){
+    bindSubtabs(id); renderStepbar(id);
+  });
+  bindBudget();
+  bindDataPage();
+  bindAcct();
+  renderAcct();
+  renderBudget();
+  renderDataStat();
+  applyTheme(themePref(),true);
+  renderScores();
+  renderSamples();
+  var ms=document.querySelectorAll('#modeSeg button');
+  for(var i=0;i<ms.length;i++) ms[i].className=(ms[i].getAttribute('data-m')===S.mode)?'on':'';
+  refreshAll();
+  /* 「跟随系统」时，系统切换深浅色要跟得上 */
+  try{
+    var mq=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)');
+    if(mq&&mq.addEventListener) mq.addEventListener('change',function(){
+      if(themePref()==='auto') applyTheme('auto',true);
+    });
+  }catch(e){}
+}
+
+/* ---------- 顶栏与按钮 ---------- */
+$('tabs').addEventListener('click',function(e){
+  var t=e.target.getAttribute&&e.target.getAttribute('data-t');
+  if(!t) return;
+  document.querySelectorAll('#tabs button').forEach(function(b){
+    b.className=(b.getAttribute('data-t')===t)?'on':''; });
+  ['params','kcal','calc','data','set'].forEach(function(k){
+    $('tab-'+k).className=(k===t)?'':'hidden'; });
+  if(t==='kcal') updateK();
+  if(t==='calc'){ renderScores(); renderCalc(); }
+  if(t==='set'){ renderThemeRows(); renderAbout(); }
+  window.scrollTo(0,0);
+});
+/* ---------- 二级子页 + 底部步骤条 ---------- */
+var NEXT_LABEL={result:'查看结果',tiers:'查看档位对照表'};
+function stepButtons(navId){
+  var nav=$(navId);
+  return nav?Array.prototype.slice.call(nav.querySelectorAll('button'))
+    .filter(function(b){ return !b.classList.contains('hidden'); }):[];
+}
+function curStep(navId){
+  var btns=stepButtons(navId), c=0;
+  btns.forEach(function(b,i){ if(b.classList.contains('on')) c=i; });
+  return {btns:btns,cur:c};
+}
+function setStep(navId,s){
+  var nav=$(navId); if(!nav) return;
+  var box=nav.getAttribute('data-box');
+  nav.querySelectorAll('button').forEach(function(b){
+    b.className=(b.getAttribute('data-s')===s)?'on':''; });
+  Array.prototype.forEach.call(document.querySelectorAll('#'+box+' > .card'),function(c){
+    if(c.getAttribute('data-pane')===s) c.classList.remove('hidden');
+    else c.classList.add('hidden');
+  });
+  renderStepbar(navId);
+}
+function renderStepbar(navId){
+  var nav=$(navId); if(!nav) return;
+  var bar=$('stepbar-'+nav.getAttribute('data-box')); if(!bar) return;
+  var st=curStep(navId), btns=st.btns, cur=st.cur;
+  if(!btns.length){ bar.innerHTML=''; return; }
+  var prev=cur>0?btns[cur-1]:null, next=cur<btns.length-1?btns[cur+1]:null;
+  var h='';
+  h+='<button class="btn" data-go="prev"'+(prev?'':' disabled')+'>← 上一步'+(prev?('：'+prev.textContent):'')+'</button>';
+  h+='<span class="steplab">第 <b>'+(cur+1)+'</b> / '+btns.length+' 步　·　<b>'+btns[cur].textContent+'</b></span>';
+  if(next){
+    var lbl=NEXT_LABEL[next.getAttribute('data-s')]||('下一步：'+next.textContent);
+    h+='<button class="btn pri" data-go="next">'+lbl+' →</button>';
+  }else{
+    h+='<button class="btn" data-go="first">回到第一步 ↻</button>';
+  }
+  bar.innerHTML=h;
+}
+function bindSubtabs(navId){
+  if(BOUND[navId]) return;
+  BOUND[navId]=1;
+  var nav=$(navId); if(!nav) return;
+  var box=nav.getAttribute('data-box');
+  nav.addEventListener('click',function(e){
+    var s=e.target.getAttribute&&e.target.getAttribute('data-s');
+    if(!s) return;
+    setStep(navId,s); window.scrollTo(0,0);
+  });
+  var bar=$('stepbar-'+box);
+  if(bar) bar.addEventListener('click',function(e){
+    var g=e.target.getAttribute&&e.target.getAttribute('data-go');
+    if(!g) return;
+    var st=curStep(navId);
+    var t=(g==='prev')?st.cur-1:((g==='next')?st.cur+1:0);
+    t=Math.max(0,Math.min(st.btns.length-1,t));
+    setStep(navId,st.btns[t].getAttribute('data-s'));
+    window.scrollTo(0,0);
+  });
+}
+/* ---------- 参数快照 ---------- */
+function renderSnapshot(){
+  var el=$('snapshot'); if(!el) return;
+  var P=S.P, T=TUsed(), cT=calcOf(), a=Math.max(P.a,0), b=Math.max(P.b,P.a);
+  var rows=[];
+  rows.push({k:'计价',v:'k = <b>'+P.k+'</b> 元/(h·分)　·　T主动 '+cT.Ta+' h　T被动 '+cT.Tp+
+    ' h　η '+P.eta+'　T_max '+(P.Tmax>0?P.Tmax+' h':'关闭')+'　预算上限 '+(P.B>0?P.B+' 元':'不限')});
+  rows.push({k:'口径与有效时长',v:'<b>'+num(T,2)+' h</b>　·　'+
+    (S.mode==='month'?'月 · 长线运营（V = 本月参考氪金）':'总 · 买断 / 终身（V = 可接受最高总价）')});
+  S.dims.forEach(function(d,i){
+    rows.push({k:'维度 '+(i+1),v:'<b>'+esc(d.name)+'</b>　权重 '+d.w+
+      '　负权重 '+(d.nw===undefined?d.w:d.nw)+
+      '　量程 ['+d.min+', '+d.max+']　当前分 <b>'+num(d.val,2)+'</b>　参考标准 '+d.anchors.length+' 档'});
+  });
+  rows.push({k:'压缩',v:(P.om?('三段　a='+P.a+'　α_L='+P.aL+'　α_M='+P.aM+'　b='+P.b+'　α_H='+P.aH+
+    '　→　c_L='+cLow(a,P.aL).toFixed(4)+'　c_M='+cMid(a,P.aM).toFixed(4)+'　c_H='+cHigh(a,P.aM,b,P.aH).toFixed(4))
+    :'<b>已关闭</b>，S = S_raw')});
+  rows.push({k:'隐藏关',v:'倒贴模式　−C·A^(W₋−Σxᵢnwᵢ)　A = '+P.negA+'，C = '+P.negC+
+    '　·　负值'+(P.negComp?'过压缩':'不压缩')});
+  rows.push({k:'输出',v:'参考区间 ±'+P.band+'%　·　对照显示：'+
+    ((P.showNoComp?'不压缩　':'')+(P.showSqrt?'开平方':'无'))});
+  rows.push({k:'档位表',v:S.tiers.map(function(t,i){ return (i+1)+'. '+esc(t.n); }).join('　')});
+  (function(){
+    var sumV=0,sumS=0,cnt=0;
+    S.budget.forEach(function(sm){ var g=gameBudget(sm); sumV+=g.V; sumS+=g.spent; if(g.T>0||g.spent>0) cnt++; });
+    rows.push({k:'k 标定表',v:S.samples.length+' 款（'+S.samples.filter(function(sm){ return sm.on; }).length+
+      ' 款纳入标定）　<em>总时长 ' + num(S.samples.reduce(function(a,sm){ return a+Number(sm.T||0); },0),0)+
+      ' h 主动 + '+num(S.samples.reduce(function(a,sm){ return a+Number(sm.Tp||0); },0),0)+' h 被动</em>'});
+    rows.push({k:'预算与剩余',v:'预算 '+num(S.budgetCap,2)+' 元　参考总额 '+num(sumV,2)+' 元　本期实际 '+num(sumS,2)+
+      ' 元　<b>剩余 '+num(Number(S.budgetCap||0)-sumS,2)+' 元</b>　<em>'+cnt+' 款计入本月</em>'});
+  })();
+  (function(){
+    var t=acctTotals();
+    if(!t.n){
+      rows.push({k:'额度账户',v:'<em>没有游戏参与记账</em>'});
+      return;
+    }
+    rows.push({k:'额度账户',v:''+t.n+' 款参与记账（共 '+S.budget.length+' 款）　每月注入 '+num(t.V,2)+' 元/月　应付合计 '+num(t.due,2)+
+      ' 元　累计支出合计 '+num(t.paid,2)+' 元　<b class="hl">总余量 '+num(t.balance,2)+' 元</b>　<em>累计参考与累计支出的差额，仅作参考'+
+      (t.neg?('，其中 '+t.neg+' 款余额为负'):'')+'</em>'});
+  })();
+  var res=solveK(S.samples,S.dims,P);
+  rows.push({k:'k 标定',v:'有效样本 <b>'+res.n+'</b> 个　·　k（最小二乘）= <b>'+num(res.kLS,4)+
+    '</b>　·　R² = '+num(res.r2,3)+'　·　CV = '+num(res.cv,3)});
+  el.innerHTML=kvHTML(rows);
+}
+
+/* ---------- 说明的展开 / 收起 ---------- */
+function setAllDetails(open){
+  document.querySelectorAll('details').forEach(function(det){
+    det.open=open;
+    var w=det.getAttribute('data-why');
+    if(w!==null&&w!==undefined) whyOpen[w]=open;
+    var r=det.getAttribute('data-ref');
+    if(r!==null&&r!==undefined) refOpen[+r]=open;
+  });
+}
+$('btnExpand').addEventListener('click',function(){
+  setAllDetails(true); toast('已展开全部说明（含参考标准）','ok');
+});
+$('btnCollapse').addEventListener('click',function(){ setAllDetails(false); });
+/* btnExpand / btnCollapse 在顶栏（head-tools）；主题与公式排版在「⑤ 设置 · 外观」 */
+$('btnSaveBudget').addEventListener('click',function(){
+  var isMonth=(S.mode!=='total');
+  var r=SOf(valsOf(),S.dims,S.P), T=Number(TUsed().toFixed(1));
+  var fieldLab=isMonth?'本月时长':'预计总时长';
+  var lastNm=String(S.lastName||'');
+  var opts=S.budget.map(function(b){ return '<option value="'+esc(b.name)+'">'; }).join('');
+  toast('保存到「预算与数据」　<span style="opacity:.72">'+(isMonth?'月 · 长线':'总 · 买断')+'口径</span>'+
+    '<div style="margin-top:10px;display:flex;flex-direction:column;gap:9px">'+
+    '<label style="display:flex;align-items:center;gap:9px;font-size:12.5px">'+
+      '<span style="flex:0 0 84px;opacity:.75">游戏名</span>'+
+      '<input type="text" id="sbName" list="sbNames" value="'+esc(lastNm)+'" placeholder="输入或从列表选" style="flex:1;min-width:150px"></label>'+
+    '<label style="display:flex;align-items:center;gap:9px;font-size:12.5px">'+
+      '<span style="flex:0 0 84px;opacity:.75">'+fieldLab+'</span>'+
+      '<input type="number" id="sbT" step="0.1" min="0" value="'+T+'" style="width:96px"><span style="opacity:.75">h</span></label>'+
+    '</div><datalist id="sbNames">'+opts+'</datalist>'+
+    '<div style="margin-top:8px;opacity:.72;font-size:12px">当前评分（S = '+num(r.s,3)+'）一起写入。'+
+    '名字与列表中已有的相同就<b>更新那一条</b>，没有就<b>新建</b>。</div>',null,[
+    {label:'保存',cls:'yes',fn:function(){
+      var nm=(($('sbName')||{}).value||'').trim();
+      if(!nm){ toast('先填一个游戏名','warn'); return; }
+      var t=parseFloat(($('sbT')||{}).value);
+      var fields=isMonth?{monthT:isFinite(t)?t:0}:{totalT:isFinite(t)?t:''};
+      var upd=upsertBudget(nm,valsOf(),fields);
+      S.lastName=nm; save();
+      toast('已'+(upd?'更新':'新建')+'「'+esc(nm)+'」　'+fieldLab+' '+num(isFinite(t)?t:0,1)+' h','ok');
+    }},
+    {label:'取消',cls:'no',fn:function(){}}
+  ]);
+});
+
+/* ---------- 按钮 ---------- */
+$('btnReset').addEventListener('click',function(){
+  confirm2('恢复默认？已填的样本、参考标准与档位表都会重置为初始状态。',function(){
+    S.dims=JSON.parse(JSON.stringify(DIM_DEFAULT));
+    S.P=JSON.parse(JSON.stringify(P_DEFAULT));
+    S.samples=[];
+    S.budget=[];
+    S.tiers=JSON.parse(JSON.stringify(TIER_DEFAULT));
+    S.calc={month:{Ta:0,Tp:0}, total:{Ta:0,Tp:0}};
+    S.budgetCap=0; S.recal={pay:0,T:0,S:0}; S.commonT=0; S.mergeMode='max'; S.periods=[];
+    S.mode='total'; refOpen={}; whyOpen={}; EXOPEN={}; K_DIRTY=false; K_WARN_AT=0;
+    try{ localStorage.removeItem(LS_KEY); }catch(e){}
+    boot();
+    toast('已恢复默认参数','ok');
+  });
+});
+$('btnExport').addEventListener('click',exportJSON);
+$('btnImport').addEventListener('click',function(){ pendingMode='ask'; $('fileImport2').click(); });
+$('btnAddSamp').addEventListener('click',function(){
+  var s={}; S.dims.forEach(function(d){ s[d.id]=d.min; });
+  S.samples.push(normSample({name:'新游戏',T:30,Tp:0,pay:30,on:true,note:'',
+    updatedAt:new Date().toISOString(),s:s}));
+  save(); renderSamples(); refreshAll(); updateK();
+});
+$('btnClearSamp').addEventListener('click',function(){
+  confirm2('清空全部标定样本？',function(){
+    S.samples=[]; save(); renderSamples(); refreshAll();
+    toast('样本已清空','ok');
+  });
+});
+$('btnDemoSamp').addEventListener('click',function(){
+  S.samples=JSON.parse(JSON.stringify(SAMP_SAMPLES));
+  save(); renderSamples(); refreshAll();
+  toast('已载入占位示例（记得换成真实数据）','ok');
+});
+$('btnUseK').addEventListener('click',function(){
+  var r=solveK(S.samples,S.dims,S.P);
+  if(!isFinite(r.kLS)||r.kLS<=0){ toast('没有可用的推荐值，先补样本。','warn'); return; }
+  S.P.k=Number(r.kLS.toFixed(4));
+  $('p_k').value=S.P.k;
+  K_DIRTY=false; K_WARN_AT=0;
+  save(); refreshAll();
+  toast('已采用 k = '+S.P.k+' 元/(h·分)','ok');
+});
+$('btnUseRK').addEventListener('click',function(){
+  var v0=Number(S.recal.pay||0), t0=Number(S.recal.T||0), s0=Number(S.recal.S||0);
+  if(!(v0>0)||!(t0>0)||!(s0>0)){ toast('实付、有效时长、S 三个数都要大于 0。','warn'); return; }
+  S.P.k=Number((v0/(t0*s0)).toFixed(4));
+  $('p_k').value=S.P.k;
+  K_DIRTY=false; K_WARN_AT=0;
+  save(); refreshAll();
+  toast('已采用粗估 k = '+S.P.k+' 元/(h·分)','ok');
+});
+[['rk_pay','pay'],['rk_T','T'],['rk_S','S']].forEach(function(pf){
+  var el=$(pf[0]); if(!el) return;
+  el.addEventListener('input',function(){
+    var v=parseFloat(el.value); S.recal[pf[1]]=isNaN(v)?0:v;
+    save(); updateK();
+  });
+});
+$('btnLoadAnchor').addEventListener('click',function(){
+  S.dims.forEach(function(d){
+    if(ANCHOR_GAME[d.id]!==undefined) d.val=clamp(ANCHOR_GAME[d.id],d.min,d.max);
+  });
+  save(); renderScores(); refreshAll();
+  toast('已载入锚点游戏的评分（新增维度不受影响）','ok');
+});
+$('btnZeroAll').addEventListener('click',function(){
+  S.dims.forEach(function(d){ d.val=clamp(0,d.min,d.max); });
+  save(); renderScores(); refreshAll();
+});
+$('modeSeg').addEventListener('click',function(e){
+  var m=e.target.getAttribute&&e.target.getAttribute('data-m');
+  if(!m) return;
+  S.mode=m;
+  document.querySelectorAll('#modeSeg button').forEach(function(b){
+    b.className=(b.getAttribute('data-m')===m)?'on':''; });
+  save(); renderTime(); refreshAll();     /* 两个口径各存一套时长，切换只换显示 */
+});
+
+load();
+boot();
+
+})();
+
+/* ---------- PWA：离线缓存注册 ---------- */
+/* 双击缩放屏蔽（App 观感；双指缩放不受影响） */
+(function(){
+  var last=0;
+  document.addEventListener('touchend',function(e){
+    var now=Date.now();
+    if(now-last<300 && e.cancelable) e.preventDefault();
+    last=now;
+  },{passive:false});
+})();
+</script>
+
+</body>
+</html>
